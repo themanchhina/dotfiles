@@ -1,0 +1,40 @@
+IdentitiesOnly	yes
+
+Host dchhina github.com
+  HostName github.com
+  User git
+  UseKeychain yes
+  AddKeysToAgent yes
+  IdentityFile ~/.ssh/bluecrew
+
+Host aamir
+  User daman
+  HostName home.aamirahmad.me
+  Port 22000
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile ~/.ssh/aamir
+
+Host home
+  User daman
+  HostName home.damanchhina.com
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile ~/.ssh/daman
+
+Host india
+  User daman
+  HostName india.damanchhina.com
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile ~/.ssh/daman
+
+Host themanchhina
+  HostName github.com
+  User git
+  UseKeychain yes
+  AddKeysToAgent yes
+  IdentityFile ~/.ssh/daman
+
+Host *
+  ServerAliveInterval 60
