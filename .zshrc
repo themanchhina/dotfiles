@@ -20,4 +20,3 @@ export SDKMAN_DIR=$(brew --prefix sdkman-cli)/libexec
 export JAVA_HOME=${SDKMAN_DIR}/candidates/java/current
 
 eval "$(fnm env --use-on-cd)"
-
