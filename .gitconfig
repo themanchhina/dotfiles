@@ -1,6 +1,6 @@
 [include]
-    path = ~/code/git.conf
+  path = ~/code/git.conf
 [includeIf "gitdir:~/code/bluecrew/"]
-    path = ~/code/bluecrew/git.conf
+  path = ~/code/bluecrew/git.conf
 [init]
-        defaultBranch = main
+  defaultBranch = main
