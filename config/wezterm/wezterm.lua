@@ -82,6 +82,25 @@ config.keys = {
       act.SendKey({ key = "L", mods = "CTRL" }),
     }),
   },
+  -- Cmd + c: Copy terminal selection, or active command-line highlighted text
+  {
+    key = "c",
+    mods = "CMD",
+    action = wezterm.action_callback(function(window, pane)
+      local has_selection = window:get_selection_text_for_pane(pane) ~= ""
+      if has_selection then
+        window:perform_action(act.CopyTo("Clipboard"), pane)
+      else
+        pane:send_text("\x1b[copy]")
+      end
+    end),
+  },
+  -- Cmd + v: Paste from clipboard
+  {
+    key = "v",
+    mods = "CMD",
+    action = act.PasteFrom("Clipboard"),
+  },
 }
 
 config.key_tables = {

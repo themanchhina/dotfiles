@@ -61,3 +61,23 @@ function backward-delete-or-kill-region() {
 zle -N backward-delete-or-kill-region
 bindkey "^?" backward-delete-or-kill-region
 bindkey "^H" backward-delete-or-kill-region
+
+# If text is highlighted, Cmd+C copies it to the macOS clipboard via pbcopy
+function copy-region-to-pbcopy() {
+  if (( REGION_ACTIVE )); then
+    local start end
+    if (( MARK < CURSOR )); then
+      start=$(( MARK + 1 ))
+      end=$CURSOR
+    else
+      start=$(( CURSOR + 1 ))
+      end=$MARK
+    fi
+    local selected="${BUFFER[start,end]}"
+    print -rn -- "$selected" | pbcopy
+    REGION_ACTIVE=0
+  fi
+}
+zle -N copy-region-to-pbcopy
+bindkey "^[[copy]" copy-region-to-pbcopy
+bindkey "\e[copy]" copy-region-to-pbcopy
