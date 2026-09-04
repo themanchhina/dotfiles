@@ -10,3 +10,52 @@ alias rebuild="$HOME/code/daman/dotfiles/scripts/rebuild.sh"
 alias update="$HOME/code/daman/dotfiles/scripts/update.sh"
 alias sync-brew="$HOME/code/daman/dotfiles/scripts/sync-brew.sh"
 alias nix-clean="nix-collect-garbage --delete-older-than 30d"
+
+# ------------------------------------------------------------------------------
+# Shift-Selection on the Command Line
+# ------------------------------------------------------------------------------
+# Visual standout highlighting for selected regions
+zle_highlight=(region:standout)
+
+# Select word backward (Shift + Option + j / Shift + Option + LeftArrow)
+function select-backward-word() {
+  (( REGION_ACTIVE )) || zle set-mark-command
+  zle backward-word
+}
+zle -N select-backward-word
+bindkey "\e[1;4D" select-backward-word
+
+# Select word forward (Shift + Option + k / Shift + Option + RightArrow)
+function select-forward-word() {
+  (( REGION_ACTIVE )) || zle set-mark-command
+  zle forward-word
+}
+zle -N select-forward-word
+bindkey "\e[1;4C" select-forward-word
+
+# Plain Option + j / Option + k clears active selection and hops word
+function deselect-and-backward-word() {
+  REGION_ACTIVE=0
+  zle backward-word
+}
+zle -N deselect-and-backward-word
+bindkey "\eb" deselect-and-backward-word
+
+function deselect-and-forward-word() {
+  REGION_ACTIVE=0
+  zle forward-word
+}
+zle -N deselect-and-forward-word
+bindkey "\ef" deselect-and-forward-word
+
+# If text is highlighted, Backspace deletes the selection (standard macOS behavior)
+function backward-delete-or-kill-region() {
+  if (( REGION_ACTIVE )); then
+    zle kill-region
+  else
+    zle backward-delete-char
+  fi
+}
+zle -N backward-delete-or-kill-region
+bindkey "^?" backward-delete-or-kill-region
+bindkey "^H" backward-delete-or-kill-region

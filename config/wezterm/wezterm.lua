@@ -35,6 +35,27 @@ config.keys = {
     mods = "OPT",
     action = act.SendString("\x1bf"),
   },
+  -- Word selection: Shift + Option + j (backward) and Shift + Option + k (forward)
+  {
+    key = "j",
+    mods = "SHIFT|OPT",
+    action = act.SendString("\x1b[1;4D"),
+  },
+  {
+    key = "k",
+    mods = "SHIFT|OPT",
+    action = act.SendString("\x1b[1;4C"),
+  },
+  {
+    key = "LeftArrow",
+    mods = "SHIFT|OPT",
+    action = act.SendString("\x1b[1;4D"),
+  },
+  {
+    key = "RightArrow",
+    mods = "SHIFT|OPT",
+    action = act.SendString("\x1b[1;4C"),
+  },
   -- Cmd + k to clear scrollback and viewport
   {
     key = "k",
@@ -43,6 +64,15 @@ config.keys = {
       act.ClearScrollback("ScrollbackAndViewport"),
       act.SendKey({ key = "L", mods = "CTRL" }),
     }),
+  },
+}
+
+config.key_tables = {
+  copy_mode = {
+    { key = "j", mods = "OPT", action = act.CopyMode("MoveBackwardWord") },
+    { key = "k", mods = "OPT", action = act.CopyMode("MoveForwardWord") },
+    { key = "j", mods = "SHIFT|OPT", action = act.CopyMode("MoveBackwardWord") },
+    { key = "k", mods = "SHIFT|OPT", action = act.CopyMode("MoveForwardWord") },
   },
 }
 
