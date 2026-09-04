@@ -18,11 +18,14 @@ fi
 # Ensure Xcode Command Line Tools are installed (required for Homebrew and native builds)
 if ! xcode-select -p >/dev/null 2>&1; then
   echo "==> Xcode Command Line Tools not detected. Prompting installation..."
-  xcode-select --install || true
-  echo ""
-  echo "Please complete the Apple Xcode Command Line Tools installation dialog,"
-  echo "then rerun this bootstrap script: ./scripts/bootstrap.sh"
-  exit 1
+  touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+  xcode-select --install 2>/dev/null || true
+  echo "Waiting for Xcode Command Line Tools to complete installation..."
+  until xcode-select -p >/dev/null 2>&1; do
+    sleep 5
+  done
+  rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+  echo "==> Xcode Command Line Tools installed."
 fi
 
 # Pre-flight migration checks for machines upgrading from older versions
@@ -34,13 +37,23 @@ if [[ -d "${HOME}/.config/nvim" && ! -L "${HOME}/.config/nvim" ]]; then
   mv "${HOME}/.config/nvim" "${HOME}/.config/nvim.before-nix"
 fi
 
-# Clean up broken symlinks from legacy run.sh setup (e.g. pointing to deleted root files)
-for link_path in "${HOME}/.zshrc" "${HOME}/.zprofile" "${HOME}/.antigenrc" "${HOME}/.ssh/config" "${HOME}/.gitconfig" "${HOME}/code/git.conf"; do
+# Clean up broken symlinks across all managed paths to prevent Home Manager collisions
+for link_path in \
+  "${HOME}/.zshrc" "${HOME}/.zprofile" "${HOME}/.antigenrc" \
+  "${HOME}/.ssh/config" "${HOME}/.gitconfig" "${HOME}/.p10k.zsh" "${HOME}/.zsh_aliases" "${HOME}/code/git.conf" \
+  "${HOME}/.config/nvim" "${HOME}/.config/wezterm/wezterm.lua" "${HOME}/.config/herdr/config.toml" \
+  "${HOME}/.config/git/personal.conf" "${HOME}/.config/git/ignore"; do
   if [[ -L "${link_path}" && ! -e "${link_path}" ]]; then
     echo "==> Removing stale broken symlink: ${link_path}"
     rm "${link_path}"
   fi
 done
+
+# Ensure strict SSH directory and file permissions
+mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh"
+if [[ -f "${repo_dir}/config/ssh/config" ]]; then
+  chmod 600 "${repo_dir}/config/ssh/config"
+fi
 if ! command -v nix >/dev/null 2>&1 && [[ ! -x /nix/var/nix/profiles/default/bin/nix ]]; then
   echo ""
   read -r -p "Determinate Nix is not installed. Install it now? [y/N] " answer

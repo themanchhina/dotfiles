@@ -1,4 +1,8 @@
+IgnoreUnknown UseKeychain
 IdentitiesOnly yes
+
+# Include local uncommitted configurations (machine-specific or private servers)
+Include ~/.ssh/config.local
 
 Host github.com themanchhina
   HostName github.com

@@ -40,7 +40,7 @@ if [[ -x /run/current-system/sw/bin/darwin-rebuild ]]; then
   exec sudo env "PATH=${safe_path}" /run/current-system/sw/bin/darwin-rebuild switch --flake "${flake}"
 fi
 
-echo "==> Applying configuration via nix-darwin runner..."
+echo "==> Applying configuration via locked nix-darwin runner..."
 exec sudo env "PATH=${safe_path}" "${nix_bin}" run \
-  "github:nix-darwin/nix-darwin/nix-darwin-26.05#darwin-rebuild" \
+  "path:${repo_dir}#darwinConfigurations.chhina.config.system.build.darwin-rebuild" \
   -- switch --flake "${flake}"

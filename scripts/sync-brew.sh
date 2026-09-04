@@ -13,34 +13,27 @@ brew_bin="$(command -v brew || echo "/opt/homebrew/bin/brew")"
 
 echo "==> Auditing Homebrew packages against darwin.nix..."
 
-# Get installed top-level formulae and casks
-installed_brews="$("${brew_bin}" leaves 2>/dev/null | sort)"
+# Ensure Nix environment is active
+if [[ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]]; then
+  # shellcheck disable=SC1091
+  . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
+fi
+
+# Get installed top-level formulae, all formulae, and casks
+installed_leaves="$("${brew_bin}" leaves 2>/dev/null | sort)"
+all_installed_brews="$("${brew_bin}" list --formula 2>/dev/null | sort)"
 installed_casks="$("${brew_bin}" list --cask 2>/dev/null | sort)"
 
-# Parse declared brews and casks from darwin.nix
-# Extract lines inside brews = [ ... ] and casks = [ ... ]
-parse_section() {
-  local section="$1"
-  awk -v sec="${section}" '
-    $0 ~ sec "[[:space:]]*=[[:space:]]*\\[" { in_sec=1; next }
-    in_sec && /\];/ { in_sec=0 }
-    in_sec && /"[^"]+"/ {
-      match($0, /"[^"]+"/)
-      val = substr($0, RSTART+1, RLENGTH-2)
-      print val
-    }
-  ' "${darwin_file}" | sort
-}
+# Parse declared brews and casks via Nix evaluation (accurate, comments/formatting agnostic)
+declared_brews="$(nix eval --json "path:${repo_dir}#darwinConfigurations.chhina.config.homebrew.brews" | jq -r '.[].name' | sort)"
+declared_casks="$(nix eval --json "path:${repo_dir}#darwinConfigurations.chhina.config.homebrew.casks" | jq -r '.[].name' | sort)"
 
-declared_brews="$(parse_section "brews")"
-declared_casks="$(parse_section "casks")"
-
-# Find items installed on this Mac but missing in darwin.nix
-missing_in_nix_brews="$(comm -23 <(echo "${installed_brews}") <(echo "${declared_brews}") | grep -v '^$' || true)"
+# Find top-level items installed on this Mac but missing in darwin.nix
+missing_in_nix_brews="$(comm -23 <(echo "${installed_leaves}") <(echo "${declared_brews}") | grep -v '^$' || true)"
 missing_in_nix_casks="$(comm -23 <(echo "${installed_casks}") <(echo "${declared_casks}") | grep -v '^$' || true)"
 
-# Find items declared in darwin.nix but not installed
-not_installed_brews="$(comm -13 <(echo "${installed_brews}") <(echo "${declared_brews}") | grep -v '^$' || true)"
+# Find items declared in darwin.nix but not installed (comparing against all installed formulas to avoid false positives on dependencies)
+not_installed_brews="$(comm -13 <(echo "${all_installed_brews}") <(echo "${declared_brews}") | grep -v '^$' || true)"
 not_installed_casks="$(comm -13 <(echo "${installed_casks}") <(echo "${declared_casks}") | grep -v '^$' || true)"
 
 has_diff=0

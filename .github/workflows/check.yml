@@ -5,15 +5,21 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   check:
-    runs-on: macos-latest
+    runs-on: macos-14
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
 
       - name: Install Determinate Nix
-        uses: DeterminateSystems/nix-installer-action@main
+        uses: DeterminateSystems/nix-installer-action@v16
 
       - name: Check flake evaluation
         run: nix flake check "path:." --no-build
+
+      - name: Validate shell scripts syntax
+        run: bash -n scripts/*.sh

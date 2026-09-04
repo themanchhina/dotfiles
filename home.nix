@@ -80,8 +80,10 @@
         [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
         [[ ! -f ~/.zsh_aliases ]] || source ~/.zsh_aliases
 
-        if [[ -x /opt/homebrew/bin/brew ]]; then
-          export SDKMAN_DIR="$(/opt/homebrew/bin/brew --prefix sdkman-cli)/libexec"
+        local brew_prefix="/opt/homebrew"
+        [[ -d "$brew_prefix" ]] || brew_prefix="/usr/local"
+        if [[ -d "$brew_prefix/opt/sdkman-cli/libexec" ]]; then
+          export SDKMAN_DIR="$brew_prefix/opt/sdkman-cli/libexec"
           [[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]] && source "$SDKMAN_DIR/bin/sdkman-init.sh"
           [[ -d "$SDKMAN_DIR/candidates/java/current" ]] && export JAVA_HOME="$SDKMAN_DIR/candidates/java/current"
         fi
