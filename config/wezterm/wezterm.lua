@@ -32,47 +32,6 @@ config.keys = {
     mods = "OPT",
     action = act.SendString("\x1bf"),
   },
-  -- Word selection: Shift + Option + j / J (backward) and Shift + Option + k / K (forward)
-  {
-    key = "j",
-    mods = "SHIFT|OPT",
-    action = act.SendString("\x1b[1;4D"),
-  },
-  {
-    key = "J",
-    mods = "SHIFT|OPT",
-    action = act.SendString("\x1b[1;4D"),
-  },
-  {
-    key = "J",
-    mods = "OPT",
-    action = act.SendString("\x1b[1;4D"),
-  },
-  {
-    key = "k",
-    mods = "SHIFT|OPT",
-    action = act.SendString("\x1b[1;4C"),
-  },
-  {
-    key = "K",
-    mods = "SHIFT|OPT",
-    action = act.SendString("\x1b[1;4C"),
-  },
-  {
-    key = "K",
-    mods = "OPT",
-    action = act.SendString("\x1b[1;4C"),
-  },
-  {
-    key = "LeftArrow",
-    mods = "SHIFT|OPT",
-    action = act.SendString("\x1b[1;4D"),
-  },
-  {
-    key = "RightArrow",
-    mods = "SHIFT|OPT",
-    action = act.SendString("\x1b[1;4C"),
-  },
   -- Cmd + k to clear scrollback and viewport
   {
     key = "k",
@@ -82,33 +41,17 @@ config.keys = {
       act.SendKey({ key = "L", mods = "CTRL" }),
     }),
   },
-  -- Cmd + c: Copy terminal selection, or active command-line highlighted text
+  -- Cmd + c to copy selection to clipboard
   {
     key = "c",
     mods = "CMD",
-    action = wezterm.action_callback(function(window, pane)
-      local has_selection = window:get_selection_text_for_pane(pane) ~= ""
-      if has_selection then
-        window:perform_action(act.CopyTo("Clipboard"), pane)
-      else
-        pane:send_text("\x1b[copy]")
-      end
-    end),
+    action = act.CopyTo("Clipboard"),
   },
-  -- Cmd + v: Paste from clipboard
+  -- Cmd + v to paste from clipboard
   {
     key = "v",
     mods = "CMD",
     action = act.PasteFrom("Clipboard"),
-  },
-}
-
-config.key_tables = {
-  copy_mode = {
-    { key = "j", mods = "OPT", action = act.CopyMode("MoveBackwardWord") },
-    { key = "k", mods = "OPT", action = act.CopyMode("MoveForwardWord") },
-    { key = "j", mods = "SHIFT|OPT", action = act.CopyMode("MoveBackwardWord") },
-    { key = "k", mods = "SHIFT|OPT", action = act.CopyMode("MoveForwardWord") },
   },
 }
 
