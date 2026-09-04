@@ -127,6 +127,14 @@
   system.defaults.finder = {
     FXPreferredViewStyle = "Nlsv";
     FXRemoveOldTrashItems = true;
+    ShowPathbar = true;
+    ShowStatusBar = true;
+  };
+  system.defaults.CustomUserPreferences = {
+    "com.apple.desktopservices" = {
+      DSDontWriteNetworkStores = true;
+      DSDontWriteUSBStores = true;
+    };
   };
   system.defaults.WindowManager = {
     EnableTiledWindowMargins = false;

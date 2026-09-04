@@ -4,6 +4,13 @@
   path = ~/code/daman/mldo-app/git.conf
 [init]
   defaultBranch = main
+[push]
+  autoSetupRemote = true
+  default = current
+[pull]
+  rebase = true
+[rebase]
+  autoStash = true
 [credential]
   helper = osxkeychain
 [core]

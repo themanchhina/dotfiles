@@ -115,4 +115,5 @@ cd ~/code/daman/dotfiles
   az login
   ```
 - **macOS Permissions**: Open **System Settings → Privacy & Security** and grant Accessibility / Input Monitoring permissions as needed for **Raycast**, **WezTerm**, and **Docker Desktop**.
+- **Restore Raycast Settings**: If you exported a `.rayconfig` file, restore it with `open ~/code/daman/dotfiles/config/raycast/settings.rayconfig` (or sign into your Raycast account for Cloud Sync).
 - **1Password / Password Manager**: Sign in to your password manager and enable SSH agent integration if applicable.
