@@ -4,13 +4,12 @@ This repository is the source of truth for Daman's Apple Silicon Mac setup. It u
 
 ## New machine
 
-The configuration currently expects:
+The configuration requires:
 
 - an Apple Silicon Mac
-- the macOS account name `chhina`
-- this repository at `~/code/daman/dotfiles`
+- the macOS account name, hostname, and repository directory (automatically inferred from your environment, or customizable in `flake.nix`)
 
-Clone it, then run the bootstrap script:
+Clone it into your preferred directory, then run the bootstrap script:
 
 ```sh
 mkdir -p ~/code/daman

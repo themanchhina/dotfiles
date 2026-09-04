@@ -25,8 +25,8 @@ all_installed_brews="$("${brew_bin}" list --formula 2>/dev/null | sort)"
 installed_casks="$("${brew_bin}" list --cask 2>/dev/null | sort)"
 
 # Parse declared brews and casks via Nix evaluation (accurate, comments/formatting agnostic)
-declared_brews="$(nix eval --json "path:${repo_dir}#darwinConfigurations.chhina.config.homebrew.brews" | jq -r '.[].name' | sort)"
-declared_casks="$(nix eval --json "path:${repo_dir}#darwinConfigurations.chhina.config.homebrew.casks" | jq -r '.[].name' | sort)"
+declared_brews="$(nix eval --impure --json "path:${repo_dir}#darwinConfigurations.default.config.homebrew.brews" | jq -r '.[].name' | sort)"
+declared_casks="$(nix eval --impure --json "path:${repo_dir}#darwinConfigurations.default.config.homebrew.casks" | jq -r '.[].name' | sort)"
 
 # Find top-level items installed on this Mac but missing in darwin.nix
 missing_in_nix_brews="$(comm -23 <(echo "${installed_leaves}") <(echo "${declared_brews}") | grep -v '^$' || true)"

@@ -6,7 +6,8 @@ alias nv="nvim"
 alias lg="lazygit"
 
 # Dotfiles & System Management
-alias rebuild="$HOME/code/daman/dotfiles/scripts/rebuild.sh"
-alias update="$HOME/code/daman/dotfiles/scripts/update.sh"
-alias sync-brew="$HOME/code/daman/dotfiles/scripts/sync-brew.sh"
+DOTFILES_DIR="${DOTFILES_DIR:-$HOME/code/daman/dotfiles}"
+alias rebuild="$DOTFILES_DIR/scripts/rebuild.sh"
+alias update="$DOTFILES_DIR/scripts/update.sh"
+alias sync-brew="$DOTFILES_DIR/scripts/sync-brew.sh"
 alias nix-clean="nix-collect-garbage --delete-older-than 30d"

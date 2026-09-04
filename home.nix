@@ -26,6 +26,7 @@
     home.sessionVariables = {
       EDITOR = "nvim";
       VISUAL = "nvim";
+      DOTFILES_DIR = dotfilesDirectory;
     };
 
     xdg.configFile."git/personal.conf".source = link "config/git/personal.conf";
