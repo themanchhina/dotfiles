@@ -97,7 +97,7 @@
       "raycast"
       "signal"
       "slack"
-      "tailscale"
+      "tailscale-app"
       "teamviewer"
       "transmission"
       "vlc"
