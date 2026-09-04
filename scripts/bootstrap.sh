@@ -25,7 +25,22 @@ if ! xcode-select -p >/dev/null 2>&1; then
   exit 1
 fi
 
-# Check for Nix and install via Determinate Systems if absent
+# Pre-flight migration checks for machines upgrading from older versions
+echo "==> Running pre-flight migration checks..."
+
+# Back up ~/.config/nvim if it is an existing directory (prevent Home Manager collision)
+if [[ -d "${HOME}/.config/nvim" && ! -L "${HOME}/.config/nvim" ]]; then
+  echo "==> Backing up existing ~/.config/nvim directory to ~/.config/nvim.before-nix..."
+  mv "${HOME}/.config/nvim" "${HOME}/.config/nvim.before-nix"
+fi
+
+# Clean up broken symlinks from legacy run.sh setup (e.g. pointing to deleted root files)
+for link_path in "${HOME}/.zshrc" "${HOME}/.zprofile" "${HOME}/.antigenrc" "${HOME}/.ssh/config" "${HOME}/.gitconfig" "${HOME}/code/git.conf"; do
+  if [[ -L "${link_path}" && ! -e "${link_path}" ]]; then
+    echo "==> Removing stale broken symlink: ${link_path}"
+    rm "${link_path}"
+  fi
+done
 if ! command -v nix >/dev/null 2>&1 && [[ ! -x /nix/var/nix/profiles/default/bin/nix ]]; then
   echo ""
   read -r -p "Determinate Nix is not installed. Install it now? [y/N] " answer
