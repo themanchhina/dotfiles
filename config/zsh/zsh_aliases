@@ -19,18 +19,20 @@ zle_highlight=(region:standout)
 
 # Select word backward (Shift + Option + j / Shift + Option + LeftArrow)
 function select-backward-word() {
-  (( REGION_ACTIVE )) || zle set-mark-command
+  (( REGION_ACTIVE )) || { MARK=$CURSOR; REGION_ACTIVE=1; }
   zle backward-word
 }
 zle -N select-backward-word
+bindkey "^[[1;4D" select-backward-word
 bindkey "\e[1;4D" select-backward-word
 
 # Select word forward (Shift + Option + k / Shift + Option + RightArrow)
 function select-forward-word() {
-  (( REGION_ACTIVE )) || zle set-mark-command
+  (( REGION_ACTIVE )) || { MARK=$CURSOR; REGION_ACTIVE=1; }
   zle forward-word
 }
 zle -N select-forward-word
+bindkey "^[[1;4C" select-forward-word
 bindkey "\e[1;4C" select-forward-word
 
 # Plain Option + j / Option + k clears active selection and hops word

@@ -32,15 +32,35 @@ config.keys = {
     mods = "OPT",
     action = act.SendString("\x1bf"),
   },
-  -- Word selection: Shift + Option + j (backward) and Shift + Option + k (forward)
+  -- Word selection: Shift + Option + j / J (backward) and Shift + Option + k / K (forward)
   {
     key = "j",
     mods = "SHIFT|OPT",
     action = act.SendString("\x1b[1;4D"),
   },
   {
+    key = "J",
+    mods = "SHIFT|OPT",
+    action = act.SendString("\x1b[1;4D"),
+  },
+  {
+    key = "J",
+    mods = "OPT",
+    action = act.SendString("\x1b[1;4D"),
+  },
+  {
     key = "k",
     mods = "SHIFT|OPT",
+    action = act.SendString("\x1b[1;4C"),
+  },
+  {
+    key = "K",
+    mods = "SHIFT|OPT",
+    action = act.SendString("\x1b[1;4C"),
+  },
+  {
+    key = "K",
+    mods = "OPT",
     action = act.SendString("\x1b[1;4C"),
   },
   {
