@@ -45,10 +45,7 @@
       "USB 10/100/1000 LAN"
       "Thunderbolt Bridge"
     ];
-  } // (lib.optionalAttrs (hostname != "" && hostname != "default") {
-    computerName = hostname;
-    hostName = hostname;
-  });
+  };
 
   homebrew = {
     enable = true;
