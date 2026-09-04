@@ -23,6 +23,9 @@
     remapCapsLockToEscape = true;
   };
 
+  # Enable Touch ID for sudo authentication (including Apple Watch)
+  security.pam.services.sudo_local.touchIdAuth = true;
+
   # System fonts installed to /Library/Fonts/Nix Fonts
   fonts.packages = [
     pkgs.meslo-lgs-nf

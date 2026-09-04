@@ -29,6 +29,7 @@
     };
 
     xdg.configFile."git/personal.conf".source = link "config/git/personal.conf";
+    xdg.configFile."git/ignore".source = link "config/git/ignore";
     xdg.configFile."herdr/config.toml".source = link "config/herdr/config.toml";
     xdg.configFile."wezterm/wezterm.lua".source = link "config/wezterm/wezterm.lua";
     xdg.configFile."nvim".source = link "config/nvim";
@@ -48,11 +49,12 @@
     syntaxHighlighting.enable = true;
 
     shellAliases = {
-      rebuild = "$HOME/code/daman/dotfiles/scripts/rebuild.sh";
-      update = "$HOME/code/daman/dotfiles/scripts/update.sh";
+      rebuild   = "$HOME/code/daman/dotfiles/scripts/rebuild.sh";
+      update    = "$HOME/code/daman/dotfiles/scripts/update.sh";
       sync-brew = "$HOME/code/daman/dotfiles/scripts/sync-brew.sh";
-      nv = "nvim";
-      lg = "lazygit";
+      nix-clean = "nix-collect-garbage --delete-older-than 30d";
+      nv        = "nvim";
+      lg        = "lazygit";
     };
 
     oh-my-zsh = {

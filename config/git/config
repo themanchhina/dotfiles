@@ -4,3 +4,7 @@
   path = ~/code/daman/mldo-app/git.conf
 [init]
   defaultBranch = main
+[credential]
+  helper = osxkeychain
+[core]
+  excludesFile = ~/.config/git/ignore
