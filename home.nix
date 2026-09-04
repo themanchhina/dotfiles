@@ -37,6 +37,7 @@
     home.file.".gitconfig".source = link "config/git/config";
     home.file.".ssh/config".source = link "config/ssh/config";
     home.file.".p10k.zsh".source = link "config/zsh/p10k.zsh";
+    home.file.".zsh_aliases".source = link "config/zsh/zsh_aliases";
 
   programs.direnv = {
     enable = true;
@@ -47,15 +48,6 @@
     enable = true;
     autosuggestion.enable = true;
     syntaxHighlighting.enable = true;
-
-    shellAliases = {
-      rebuild   = "$HOME/code/daman/dotfiles/scripts/rebuild.sh";
-      update    = "$HOME/code/daman/dotfiles/scripts/update.sh";
-      sync-brew = "$HOME/code/daman/dotfiles/scripts/sync-brew.sh";
-      nix-clean = "nix-collect-garbage --delete-older-than 30d";
-      nv        = "nvim";
-      lg        = "lazygit";
-    };
 
     oh-my-zsh = {
       enable = true;
@@ -86,6 +78,7 @@
       '')
       (lib.mkOrder 1000 ''
         [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+        [[ ! -f ~/.zsh_aliases ]] || source ~/.zsh_aliases
 
         if [[ -x /opt/homebrew/bin/brew ]]; then
           export SDKMAN_DIR="$(/opt/homebrew/bin/brew --prefix sdkman-cli)/libexec"

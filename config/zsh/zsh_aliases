@@ -1,0 +1,12 @@
+# Antigravity CLI
+alias gi="agy --dangerously-skip-permissions"
+
+# Editor & Tools
+alias nv="nvim"
+alias lg="lazygit"
+
+# Dotfiles & System Management
+alias rebuild="$HOME/code/daman/dotfiles/scripts/rebuild.sh"
+alias update="$HOME/code/daman/dotfiles/scripts/update.sh"
+alias sync-brew="$HOME/code/daman/dotfiles/scripts/sync-brew.sh"
+alias nix-clean="nix-collect-garbage --delete-older-than 30d"
