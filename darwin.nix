@@ -1,6 +1,7 @@
 {
   homeDirectory,
   hostname,
+  lib,
   pkgs,
   system,
   username,
@@ -36,8 +37,6 @@
   system.stateVersion = 6;
 
   networking = {
-    computerName = hostname;
-    hostName = hostname;
     dns = [ "1.1.1.1" "1.0.0.1" ];
     knownNetworkServices = [
       "Wi-Fi"
@@ -46,7 +45,10 @@
       "USB 10/100/1000 LAN"
       "Thunderbolt Bridge"
     ];
-  };
+  } // (lib.optionalAttrs (hostname != "" && hostname != "default") {
+    computerName = hostname;
+    hostName = hostname;
+  });
 
   homebrew = {
     enable = true;
