@@ -1,0 +1,102 @@
+{
+  config,
+  dotfilesDirectory,
+  homeDirectory,
+  lib,
+  pkgs,
+  username,
+  ...
+}:
+
+  let
+    link = path: config.lib.file.mkOutOfStoreSymlink "${dotfilesDirectory}/${path}";
+  in
+  {
+    home.username = username;
+    home.homeDirectory = homeDirectory;
+    home.stateVersion = "24.11";
+    home.packages = with pkgs; [
+      fd
+      fzf
+      jq
+      lazygit
+      neovim
+      ripgrep
+    ];
+    home.sessionVariables = {
+      EDITOR = "nvim";
+      VISUAL = "nvim";
+    };
+
+    xdg.configFile."git/personal.conf".source = link "config/git/personal.conf";
+    xdg.configFile."herdr/config.toml".source = link "config/herdr/config.toml";
+    xdg.configFile."wezterm/wezterm.lua".source = link "config/wezterm/wezterm.lua";
+    xdg.configFile."nvim".source = link "config/nvim";
+
+    home.file.".gitconfig".source = link "config/git/config";
+    home.file.".ssh/config".source = link "config/ssh/config";
+    home.file.".p10k.zsh".source = link "config/zsh/p10k.zsh";
+
+  programs.direnv = {
+    enable = true;
+    nix-direnv.enable = true;
+  };
+
+  programs.zsh = {
+    enable = true;
+    autosuggestion.enable = true;
+    syntaxHighlighting.enable = true;
+
+    shellAliases = {
+      rebuild = "$HOME/code/daman/dotfiles/scripts/rebuild.sh";
+      update = "$HOME/code/daman/dotfiles/scripts/update.sh";
+      sync-brew = "$HOME/code/daman/dotfiles/scripts/sync-brew.sh";
+      nv = "nvim";
+      lg = "lazygit";
+    };
+
+    oh-my-zsh = {
+      enable = true;
+      plugins = [
+        "git"
+        "command-not-found"
+        "docker"
+        "docker-compose"
+      ];
+    };
+
+    plugins = [
+      {
+        name = "powerlevel10k";
+        src = pkgs.zsh-powerlevel10k;
+        file = "share/zsh-powerlevel10k/powerlevel10k.zsh-theme";
+      }
+    ];
+
+    initContent = lib.mkMerge [
+      (lib.mkOrder 500 ''
+        if [[ -r "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh" ]]; then
+          source "''${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-''${(%):-%n}.zsh"
+        fi
+      '')
+      (lib.mkOrder 550 ''
+        fpath+=("${pkgs.zsh-completions}/share/zsh/site-functions")
+      '')
+      (lib.mkOrder 1000 ''
+        [[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
+
+        if [[ -x /opt/homebrew/bin/brew ]]; then
+          export SDKMAN_DIR="$(/opt/homebrew/bin/brew --prefix sdkman-cli)/libexec"
+          [[ -s "$SDKMAN_DIR/bin/sdkman-init.sh" ]] && source "$SDKMAN_DIR/bin/sdkman-init.sh"
+          [[ -d "$SDKMAN_DIR/candidates/java/current" ]] && export JAVA_HOME="$SDKMAN_DIR/candidates/java/current"
+        fi
+
+        [[ -x /opt/homebrew/bin/fnm ]] && eval "$(/opt/homebrew/bin/fnm env --use-on-cd)"
+      '')
+    ];
+
+    profileExtra = ''
+      [[ -x /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
+    '';
+  };
+}

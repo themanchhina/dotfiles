@@ -1,0 +1,6 @@
+[include]
+  path = ~/.config/git/personal.conf
+[includeIf "gitdir:~/code/daman/mldo-app/"]
+  path = ~/code/daman/mldo-app/git.conf
+[init]
+  defaultBranch = main

@@ -1,0 +1,14 @@
+onboarding = false
+
+[theme]
+name = "tokyo-night"
+
+[ui]
+copy_on_select = false
+hide_tab_bar_when_single_tab = true
+
+[ui.toast]
+delivery = "terminal"
+
+[ui.sound]
+enabled = false
