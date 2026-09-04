@@ -9,6 +9,9 @@ config.font_size = 15.0
 config.hide_tab_bar_if_only_one_tab = true
 config.adjust_window_size_when_changing_font_size = false
 
+-- Hold Shift to select text with the mouse (even inside apps like Neovim, Tmux, Lazygit)
+config.bypass_mouse_reporting_modifiers = "SHIFT"
+
 config.keys = {
   -- Word hopping: Option + j (backward word) and Option + k (forward word)
   {
