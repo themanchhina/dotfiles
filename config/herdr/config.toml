@@ -24,7 +24,7 @@ rows = [
 ]
 
 [ui.toast]
-delivery = "system"
+delivery = "terminal"
 delay_seconds = 1
 
 [ui.sound]
