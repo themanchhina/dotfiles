@@ -19,7 +19,7 @@ window_title = "{hostname}: {workspace}"
 
 [ui.sidebar.agents]
 rows = [
-  ["state_icon", "pane"],
+  ["state_icon", { token = "pane", bold = true, dim = false }],
   ["workspace"],
 ]
 
