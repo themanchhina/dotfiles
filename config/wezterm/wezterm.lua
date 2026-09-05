@@ -87,6 +87,13 @@ config.keys = {
     mods = "CMD|SHIFT",
     action = act.SendKey({ key = "v", mods = "CTRL" }),
   },
+  -- Shift + Enter for newline across all harnesses (Claude, Codex, Agy)
+  -- Sends Esc + Enter (\x1b\r), universally parsed as Alt/Option+Enter (newline without submit)
+  {
+    key = "Enter",
+    mods = "SHIFT",
+    action = act.SendString("\x1b\r"),
+  },
 
   -- --------------------------------------------------------------------------
   -- Herdr Dedicated Shortcuts (Cmd + Shift) - Single shortcuts per action
