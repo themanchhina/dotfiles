@@ -109,7 +109,6 @@
   system.defaults.NSGlobalDomain = {
     AppleInterfaceStyleSwitchesAutomatically = true;
     AppleShowAllExtensions = true;
-    _HIHideMenuBar = true;
     "com.apple.swipescrolldirection" = false;
   };
   system.defaults.dock = {

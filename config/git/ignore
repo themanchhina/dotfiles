@@ -14,3 +14,7 @@
 # Environment & local tooling
 .direnv/
 .envrc.local
+
+# Git worktrees
+.worktrees/
+.wt/

@@ -45,6 +45,14 @@
     nix-direnv.enable = true;
   };
 
+  programs.fzf = {
+    enable = true;
+    enableZshIntegration = true;
+    defaultCommand = "fd --type f --strip-cwd-prefix --hidden --exclude .git";
+    fileWidgetCommand = "fd --type f --strip-cwd-prefix --hidden --exclude .git";
+    changeDirWidgetCommand = "fd --type d --strip-cwd-prefix --hidden --exclude .git";
+  };
+
   programs.zsh = {
     enable = true;
     autosuggestion.enable = true;

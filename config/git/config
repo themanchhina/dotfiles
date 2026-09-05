@@ -15,3 +15,22 @@
   helper = osxkeychain
 [core]
   excludesFile = ~/.config/git/ignore
+
+[alias]
+  # Worktree operations
+  wt = worktree
+  wtl = worktree list
+  wta = worktree add
+  wtr = worktree remove
+  wtp = worktree prune
+
+  # Everyday Git workflow
+  st = status -sb
+  br = branch
+  co = checkout
+  sw = switch
+  ci = commit
+  cp = cherry-pick
+  df = diff
+  lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
+  prune-merged = "!sh -c 'branches=$(git branch --merged | grep -vE \"^\\*|master|main\"); if [ -n \"$branches\" ]; then echo \"$branches\" | xargs -n 1 git branch -d; else echo \"No merged branches to prune.\"; fi'"

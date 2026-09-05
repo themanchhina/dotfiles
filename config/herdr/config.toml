@@ -3,12 +3,98 @@ onboarding = false
 [theme]
 name = "tokyo-night"
 
+[theme.custom]
+active_row_bg = "#283457"
+selection_bg = "#3b4261"
+accent = "#7aa2f7"
+
 [ui]
+accent = "#7aa2f7"
 copy_on_select = false
 hide_tab_bar_when_single_tab = true
+show_agent_labels_on_pane_borders = true
+status_indicators = "symbols"
+agent_panel_sort = "priority"
+window_title = "{hostname}: {workspace}"
 
 [ui.toast]
-delivery = "terminal"
+delivery = "system"
+delay_seconds = 1
 
 [ui.sound]
 enabled = false
+
+[session]
+resume_agents_on_restore = true
+
+[remote]
+manage_ssh_config = true
+
+[worktrees]
+directory = "~/.herdr/worktrees"
+
+[advanced]
+scrollback_limit_bytes = 10000000
+
+[experimental]
+pane_history = true
+
+[keys]
+prefix = "ctrl+b"
+
+# Pane cycling (adjacent pair: j = previous pane, k = next pane)
+cycle_pane_previous = "prefix+j"
+cycle_pane_next = "prefix+k"
+
+# Split panes
+split_vertical = "prefix+v"
+split_horizontal = ["prefix+-", "prefix+s"]
+
+# Zoom focused pane (toggle full-screen)
+zoom = "prefix+z"
+close_pane = "prefix+x"
+
+# Tab navigation: adjacent pair (u = previous tab, i = next tab)
+previous_tab = ["prefix+p", "prefix+u"]
+next_tab = ["prefix+n", "prefix+i"]
+new_tab = "prefix+c"
+close_tab = "prefix+X"
+
+# Git Worktrees (Ideal workflow: quick isolated branches)
+new_worktree = "prefix+G"
+open_worktree = "prefix+alt+g"
+
+# Workspace lifecycle
+new_workspace = "prefix+N"
+close_workspace = "prefix+D"
+
+# Renaming shortcuts (interactive prompts)
+rename_pane = ["prefix+P", "prefix+R"]
+rename_tab = "prefix+T"
+rename_workspace = "prefix+W"
+
+# Agent cycling shortcuts
+previous_agent = "prefix+A"
+next_agent = "prefix+a"
+
+# Session / Workspace navigation
+workspace_picker = "prefix+w"
+goto = "prefix+g"
+toggle_sidebar = "prefix+b"
+
+# Open pane scrollback in $EDITOR (Neovim)
+edit_scrollback = "prefix+e"
+
+# Image clipboard paste for remote agents
+remote_image_paste = "ctrl+v"
+
+# Session-modal Lazygit popup (floating modal overlay)
+[[keys.command]]
+key = "prefix+l"
+type = "popup"
+command = "lazygit"
+width = "85%"
+height = "85%"
+description = "Lazygit Popup"
+
+
