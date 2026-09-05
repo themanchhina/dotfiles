@@ -52,6 +52,9 @@
     taps = [
       "sdkman/tap"
     ];
+    masApps = {
+      "Irvue" = 1039633667;
+    };
     brews = [
       "awscli"
       "azure-cli"
@@ -65,6 +68,7 @@
       "gradle"
       "herdr"
       "kubernetes-cli"
+      "mas"
       "maven"
       "mysql"
       "nmap"
