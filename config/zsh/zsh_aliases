@@ -2,6 +2,8 @@
 alias gi="agy --dangerously-skip-permissions"
 
 # Editor & Tools
+alias vi="nvim"
+alias vim="nvim"
 alias nv="nvim"
 alias lg="lazygit"
 
