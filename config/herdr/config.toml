@@ -19,8 +19,8 @@ window_title = "{hostname}: {workspace}"
 
 [ui.sidebar.agents]
 rows = [
-  ["state_icon", { token = "pane", bold = true, dim = false }],
-  ["workspace"],
+  ["state_icon", "workspace"],
+  [{ token = "pane", bold = true, dim = false }],
 ]
 
 [ui.toast]
