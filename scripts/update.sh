@@ -42,7 +42,8 @@ if [[ -x /opt/homebrew/bin/brew ]]; then
   /opt/homebrew/bin/brew upgrade
 fi
 
-# Clean up legacy treesitter parsers if present
+# Clean up legacy treesitter files if present
+rm -f "${HOME}/.local/share/nvim/lazy/nvim-treesitter/lua/nvim-treesitter.lua"
 if [[ -d "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser" ]]; then
   rm -rf "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser"
 fi

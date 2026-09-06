@@ -36,11 +36,13 @@ if [[ -d "${HOME}/.config/nvim" && ! -L "${HOME}/.config/nvim" ]]; then
   mv "${HOME}/.config/nvim" "${HOME}/.config/nvim.before-nix"
 fi
 
-# Clean up stale legacy treesitter parser directory that conflicts with main branch
+# Clean up stale legacy treesitter files that conflict with main branch
+rm -f "${HOME}/.local/share/nvim/lazy/nvim-treesitter/lua/nvim-treesitter.lua"
 if [[ -d "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser" ]]; then
   echo "==> Removing stale legacy treesitter parser directory..."
   rm -rf "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser"
 fi
+
 
 # Clean up broken symlinks across all managed paths to prevent Home Manager collisions
 for link_path in \

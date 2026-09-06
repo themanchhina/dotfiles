@@ -164,4 +164,79 @@ if vim.treesitter then
   end
 end
 
+-- Clean up stale master-branch leftover files from nvim-treesitter if present.
+-- When nvim-treesitter transitions from master to main, the legacy lua/nvim-treesitter.lua file
+-- (which requires nvim-treesitter.configs and query_predicates) can linger on disk as an untracked file,
+-- shadowing the new lua/nvim-treesitter/init.lua directory module.
+local data_dir = vim.fn.stdpath("data")
+local stale_ts_entry = vim.fs.joinpath(data_dir, "lazy", "nvim-treesitter", "lua", "nvim-treesitter.lua")
+if vim.uv.fs_stat(stale_ts_entry) then
+  pcall(vim.uv.fs_unlink, stale_ts_entry)
+end
+local stale_ts_parser = vim.fs.joinpath(data_dir, "lazy", "nvim-treesitter", "parser")
+if vim.uv.fs_stat(stale_ts_parser) then
+  pcall(vim.fn.delete, stale_ts_parser, "rf")
+end
+
+-- Backwards compatibility shims for legacy nvim-treesitter modules in package.preload.
+-- In nvim-treesitter main branch, several legacy submodules were removed or renamed.
+-- These shims prevent errors when plugins or stale files attempt to require legacy paths.
+if not package.preload["nvim-treesitter.configs"] then
+  package.preload["nvim-treesitter.configs"] = function()
+    local ok, config = pcall(require, "nvim-treesitter.config")
+    if ok then
+      return config
+    end
+    return {
+      setup = function() end,
+      get_module = function() return {} end,
+      is_installed = function() return true end,
+      commands = {},
+    }
+  end
+end
+
+if not package.preload["nvim-treesitter.query_predicates"] then
+  package.preload["nvim-treesitter.query_predicates"] = function()
+    return {}
+  end
+end
+
+if not package.preload["nvim-treesitter.compat"] then
+  package.preload["nvim-treesitter.compat"] = function()
+    return {
+      get_query_files = function(lang, query_name)
+        return vim.treesitter.query.get_files(lang, query_name)
+      end,
+    }
+  end
+end
+
+if not package.preload["nvim-treesitter.utils"] then
+  package.preload["nvim-treesitter.utils"] = function()
+    local ok, util = pcall(require, "nvim-treesitter.util")
+    if ok then
+      return util
+    end
+    return {
+      setup_commands = function() end,
+    }
+  end
+end
+
+if not package.preload["nvim-treesitter.info"] then
+  package.preload["nvim-treesitter.info"] = function()
+    return { commands = {} }
+  end
+end
+
+if not package.preload["nvim-treesitter.statusline"] then
+  package.preload["nvim-treesitter.statusline"] = function()
+    return {
+      statusline = function() return "" end,
+    }
+  end
+end
+
+
 

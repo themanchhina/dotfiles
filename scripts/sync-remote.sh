@@ -89,8 +89,9 @@ else
     (cd "${repo_dir}/config/nvim" && tar -cf - .) | ssh "${target_host}" "tar -xf - -C ~/.config/nvim"
   fi
 
-  # Clean up stale legacy treesitter parsers and restore lockfile commits headlessly
+  # Clean up stale legacy treesitter files and restore lockfile commits headlessly
   ssh "${target_host}" 'bash -s' << 'REMOTE_NVIM_SYNC'
+    rm -f "${HOME}/.local/share/nvim/lazy/nvim-treesitter/lua/nvim-treesitter.lua"
     if [[ -d "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser" ]]; then
       rm -rf "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser"
     fi
