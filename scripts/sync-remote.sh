@@ -126,18 +126,27 @@ if [[ ${install_tools} -eq 1 ]]; then
           | awk -F'/tag/' '/^[Ll]ocation:/ {print $2}'
       }
 
-      # 1. Neovim (nvim >= 0.10)
-      if command -v nvim >/dev/null 2>&1; then
+      # 1. Neovim (using glibc-2.17 compatible build from neovim-releases)
+      if command -v nvim >/dev/null 2>&1 && nvim --version >/dev/null 2>&1; then
         echo "     ✓ nvim: $(nvim --version | head -n1)"
       else
-        echo "     -> Installing Neovim (${nvim_arch})..."
-        curl -fsSL "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-${nvim_arch}.tar.gz" \
-          | tar -xz -C "${HOME}/.local" --strip-components=1
+        if command -v nvim >/dev/null 2>&1; then
+          echo "     ⚠️  Existing nvim binary cannot execute (likely glibc version mismatch). Reinstalling with GLIBC 2.17+ build..."
+        fi
+        echo "     -> Installing Neovim (${nvim_arch}) with GLIBC 2.17+ compatibility..."
+        nvim_tag="$(get_latest_github_tag "neovim/neovim-releases")"
+        nvim_tag="${nvim_tag:-v0.12.5}"
+        if ! curl -fsSL "https://github.com/neovim/neovim-releases/releases/download/${nvim_tag}/nvim-linux-${nvim_arch}.tar.gz" \
+          | tar -xz -C "${HOME}/.local" --strip-components=1 2>/dev/null; then
+          echo "     -> Fallback: Downloading standard Neovim release..."
+          curl -fsSL "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-${nvim_arch}.tar.gz" \
+            | tar -xz -C "${HOME}/.local" --strip-components=1
+        fi
         echo "     ✓ nvim installed: $(${HOME}/.local/bin/nvim --version | head -n1)"
       fi
 
       # 2. Herdr
-      if command -v herdr >/dev/null 2>&1; then
+      if command -v herdr >/dev/null 2>&1 && herdr --version >/dev/null 2>&1; then
         echo "     ✓ herdr: $(herdr --version 2>/dev/null || echo 'installed')"
       else
         echo "     -> Installing Herdr..."
@@ -146,10 +155,10 @@ if [[ ${install_tools} -eq 1 ]]; then
       fi
 
       # 3. ripgrep (rg)
-      if command -v rg >/dev/null 2>&1; then
+      if command -v rg >/dev/null 2>&1 && rg --version >/dev/null 2>&1; then
         echo "     ✓ rg: $(rg --version | head -n1)"
       else
-        echo "     -> Installing ripgrep..."
+        echo "     -> Installing ripgrep (musl static)..."
         rg_tag="$(get_latest_github_tag "BurntSushi/ripgrep")"
         rg_tag="${rg_tag:-15.2.0}"
         rg_ver="${rg_tag#v}"
@@ -163,10 +172,10 @@ if [[ ${install_tools} -eq 1 ]]; then
       fi
 
       # 4. fd-find (fd)
-      if command -v fd >/dev/null 2>&1; then
+      if command -v fd >/dev/null 2>&1 && fd --version >/dev/null 2>&1; then
         echo "     ✓ fd: $(fd --version | head -n1)"
       else
-        echo "     -> Installing fd..."
+        echo "     -> Installing fd (musl static)..."
         fd_tag="$(get_latest_github_tag "sharkdp/fd")"
         fd_tag="${fd_tag:-v10.5.0}"
         tmp_dir="$(mktemp -d)"
@@ -179,7 +188,7 @@ if [[ ${install_tools} -eq 1 ]]; then
       fi
 
       # 5. lazygit
-      if command -v lazygit >/dev/null 2>&1; then
+      if command -v lazygit >/dev/null 2>&1 && lazygit --version >/dev/null 2>&1; then
         echo "     ✓ lazygit: $(lazygit --version | head -n1)"
       else
         echo "     -> Installing lazygit..."
@@ -196,7 +205,7 @@ if [[ ${install_tools} -eq 1 ]]; then
       fi
 
       # 6. jq
-      if command -v jq >/dev/null 2>&1; then
+      if command -v jq >/dev/null 2>&1 && jq --version >/dev/null 2>&1; then
         echo "     ✓ jq: $(jq --version | head -n1)"
       else
         echo "     -> Installing jq..."
@@ -206,7 +215,7 @@ if [[ ${install_tools} -eq 1 ]]; then
       fi
 
       # 7. fzf
-      if command -v fzf >/dev/null 2>&1; then
+      if command -v fzf >/dev/null 2>&1 && fzf --version >/dev/null 2>&1; then
         echo "     ✓ fzf: $(fzf --version | head -n1)"
       else
         echo "     -> Installing fzf..."
@@ -223,7 +232,7 @@ if [[ ${install_tools} -eq 1 ]]; then
       fi
 
       # 8. uv (Python package manager & runner)
-      if command -v uv >/dev/null 2>&1; then
+      if command -v uv >/dev/null 2>&1 && uv --version >/dev/null 2>&1; then
         echo "     ✓ uv: $(uv --version | head -n1)"
       else
         echo "     -> Installing uv..."
@@ -232,8 +241,8 @@ if [[ ${install_tools} -eq 1 ]]; then
       fi
 
       # 9. fnm (Fast Node Manager for Mason / LSPs)
-      if command -v fnm >/dev/null 2>&1 || [[ -x "${HOME}/.local/share/fnm/fnm" ]]; then
-        echo "     ✓ fnm: installed"
+      if (command -v fnm >/dev/null 2>&1 || [[ -x "${HOME}/.local/share/fnm/fnm" ]]) && fnm --version >/dev/null 2>&1; then
+        echo "     ✓ fnm: $(fnm --version 2>/dev/null || echo 'installed')"
       else
         echo "     -> Installing fnm..."
         curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell --install-dir "${HOME}/.local/share/fnm"
@@ -244,7 +253,7 @@ if [[ ${install_tools} -eq 1 ]]; then
       fi
 
       # 10. zoxide (Smarter cd)
-      if command -v zoxide >/dev/null 2>&1; then
+      if command -v zoxide >/dev/null 2>&1 && zoxide --version >/dev/null 2>&1; then
         echo "     ✓ zoxide: $(zoxide --version | head -n1)"
       else
         echo "     -> Installing zoxide..."
