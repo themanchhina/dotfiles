@@ -39,3 +39,4 @@ Host *
   AddKeysToAgent yes
   UseKeychain yes
   ServerAliveInterval 60
+  SendEnv TERM_PROGRAM
