@@ -84,9 +84,8 @@ restore_nvim_plugins() {
   if [[ "${clean_mode}" -eq 1 ]]; then
     echo "==> Purging Neovim plugin caches (~/.local/share/nvim/lazy, site, cache, state)..."
     rm -rf "${HOME}/.local/share/nvim/lazy" "${HOME}/.local/share/nvim/site" "${HOME}/.cache/nvim" "${HOME}/.local/state/nvim"
+    clean_treesitter_legacy
   fi
-
-  clean_treesitter_legacy
 
   echo "==> Restoring Neovim plugins and treesitter parsers..."
   nvim --headless "+Lazy! restore" "+qa" >/dev/null 2>&1 || true
@@ -97,8 +96,6 @@ sync_nvim_plugins() {
   if ! command -v nvim >/dev/null 2>&1; then
     return 0
   fi
-
-  clean_treesitter_legacy
 
   echo "==> Syncing Neovim plugins and treesitter..."
   nvim --headless "+Lazy! sync" "+qa" >/dev/null 2>&1 || true
