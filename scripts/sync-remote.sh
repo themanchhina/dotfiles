@@ -88,6 +88,16 @@ else
     # Fallback to tar stream over ssh if rsync is not installed on remote
     (cd "${repo_dir}/config/nvim" && tar -cf - .) | ssh "${target_host}" "tar -xf - -C ~/.config/nvim"
   fi
+
+  # Clean up stale legacy treesitter parsers and restore lockfile commits headlessly
+  ssh "${target_host}" 'bash -s' << 'REMOTE_NVIM_SYNC'
+    if [[ -d "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser" ]]; then
+      rm -rf "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser"
+    fi
+    if command -v nvim >/dev/null 2>&1; then
+      nvim --headless "+Lazy! restore" "+qa" >/dev/null 2>&1 || true
+    fi
+REMOTE_NVIM_SYNC
 fi
 
 # 3. Git configs
