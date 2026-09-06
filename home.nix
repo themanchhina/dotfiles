@@ -22,6 +22,7 @@
       lazygit
       neovim
       ripgrep
+      tree-sitter
     ];
     home.sessionVariables = {
       EDITOR = "nvim";

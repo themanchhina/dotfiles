@@ -42,4 +42,15 @@ if [[ -x /opt/homebrew/bin/brew ]]; then
   /opt/homebrew/bin/brew upgrade
 fi
 
+# Clean up legacy treesitter parsers if present
+if [[ -d "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser" ]]; then
+  rm -rf "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser"
+fi
+
+# Sync and compile Neovim plugins and treesitter parsers headlessly
+if command -v nvim >/dev/null 2>&1; then
+  echo "==> Syncing Neovim plugins and treesitter..."
+  nvim --headless "+Lazy! sync" "+qa" >/dev/null 2>&1 || true
+fi
+
 echo "==> System successfully updated!"

@@ -36,6 +36,12 @@ if [[ -d "${HOME}/.config/nvim" && ! -L "${HOME}/.config/nvim" ]]; then
   mv "${HOME}/.config/nvim" "${HOME}/.config/nvim.before-nix"
 fi
 
+# Clean up stale legacy treesitter parser directory that conflicts with main branch
+if [[ -d "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser" ]]; then
+  echo "==> Removing stale legacy treesitter parser directory..."
+  rm -rf "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser"
+fi
+
 # Clean up broken symlinks across all managed paths to prevent Home Manager collisions
 for link_path in \
   "${HOME}/.zshrc" "${HOME}/.zprofile" "${HOME}/.antigenrc" \
@@ -76,5 +82,13 @@ if [[ -d /nix/var/nix/profiles/default/bin ]]; then
   export PATH="/nix/var/nix/profiles/default/bin:${PATH}"
 fi
 
-echo "==> Handing off to rebuild script..."
-exec "${repo_dir}/scripts/rebuild.sh"
+echo "==> Applying system configuration via rebuild script..."
+"${repo_dir}/scripts/rebuild.sh"
+
+# Pre-warm Neovim plugins and treesitter parsers headlessly so the first launch is instant
+if command -v nvim >/dev/null 2>&1; then
+  echo "==> Pre-warming Neovim plugins and treesitter parsers..."
+  nvim --headless "+Lazy! restore" "+qa" >/dev/null 2>&1 || true
+fi
+
+echo "==> Bootstrap completed successfully!"
