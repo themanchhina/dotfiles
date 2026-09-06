@@ -2,29 +2,13 @@
 set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+# shellcheck disable=SC1091
+source "${repo_dir}/scripts/lib/utils.sh"
 
-# Source Nix profile if available in standard location
-if [[ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]]; then
-  # shellcheck disable=SC1091
-  . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
-fi
+source_nix_env
+nix_bin="$(find_nix_bin "${repo_dir}")"
 
-if command -v nix >/dev/null 2>&1; then
-  nix_bin="$(command -v nix)"
-elif [[ -x /nix/var/nix/profiles/default/bin/nix ]]; then
-  nix_bin="/nix/var/nix/profiles/default/bin/nix"
-else
-  echo "Error: Nix is not installed. Run ${repo_dir}/scripts/bootstrap.sh first." >&2
-  exit 1
-fi
-
-# Ensure untracked files are staged for Nix
-if git -C "${repo_dir}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-  untracked="$(git -C "${repo_dir}" ls-files --others --exclude-standard)"
-  if [[ -n "${untracked}" ]]; then
-    git -C "${repo_dir}" add -N .
-  fi
-fi
+stage_untracked_for_nix "${repo_dir}"
 
 if [[ -x /opt/homebrew/bin/brew ]]; then
   echo "==> Updating Homebrew formula and cask indexes..."
@@ -42,16 +26,6 @@ if [[ -x /opt/homebrew/bin/brew ]]; then
   /opt/homebrew/bin/brew upgrade
 fi
 
-# Clean up legacy treesitter files if present
-rm -f "${HOME}/.local/share/nvim/lazy/nvim-treesitter/lua/nvim-treesitter.lua"
-if [[ -d "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser" ]]; then
-  rm -rf "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser"
-fi
-
-# Sync and compile Neovim plugins and treesitter parsers headlessly
-if command -v nvim >/dev/null 2>&1; then
-  echo "==> Syncing Neovim plugins and treesitter..."
-  nvim --headless "+Lazy! sync" "+qa" >/dev/null 2>&1 || true
-fi
+sync_nvim_plugins
 
 echo "==> System successfully updated!"

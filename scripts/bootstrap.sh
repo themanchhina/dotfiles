@@ -2,6 +2,8 @@
 set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+# shellcheck disable=SC1091
+source "${repo_dir}/scripts/lib/utils.sh"
 
 echo "==> Validating system requirements..."
 
@@ -10,9 +12,8 @@ if [[ "$(uname -s)" != "Darwin" || "$(uname -m)" != "arm64" ]]; then
   exit 1
 fi
 
-current_user="${DARWIN_USER:-${USER:-$(id -un)}}"
-current_host="${DARWIN_HOST:-${HOSTNAME:-${HOST:-$(scutil --get LocalHostName 2>/dev/null || hostname -s)}}}"
-echo "==> Bootstrapping for user '${current_user}' on host '${current_host}'..."
+resolve_system_identity
+echo "==> Bootstrapping for user '${USER}' on host '${HOSTNAME}'..."
 
 # Ensure Xcode Command Line Tools are installed (required for Homebrew and native builds)
 if ! xcode-select -p >/dev/null 2>&1; then
@@ -37,12 +38,7 @@ if [[ -d "${HOME}/.config/nvim" && ! -L "${HOME}/.config/nvim" ]]; then
 fi
 
 # Clean up stale legacy treesitter files that conflict with main branch
-rm -f "${HOME}/.local/share/nvim/lazy/nvim-treesitter/lua/nvim-treesitter.lua"
-if [[ -d "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser" ]]; then
-  echo "==> Removing stale legacy treesitter parser directory..."
-  rm -rf "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser"
-fi
-
+clean_treesitter_legacy
 
 # Clean up broken symlinks across all managed paths to prevent Home Manager collisions
 for link_path in \
@@ -61,6 +57,7 @@ mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh"
 if [[ -f "${repo_dir}/config/ssh/config" ]]; then
   chmod 600 "${repo_dir}/config/ssh/config"
 fi
+
 if ! command -v nix >/dev/null 2>&1 && [[ ! -x /nix/var/nix/profiles/default/bin/nix ]]; then
   echo ""
   read -r -p "Determinate Nix is not installed. Install it now? [y/N] " answer
@@ -74,15 +71,7 @@ if ! command -v nix >/dev/null 2>&1 && [[ ! -x /nix/var/nix/profiles/default/bin
     | sh -s -- install
 fi
 
-# Ensure Nix environment is active in the current process
-if [[ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]]; then
-  # shellcheck disable=SC1091
-  . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
-fi
-
-if [[ -d /nix/var/nix/profiles/default/bin ]]; then
-  export PATH="/nix/var/nix/profiles/default/bin:${PATH}"
-fi
+source_nix_env
 
 echo "==> Applying system configuration via rebuild script..."
 "${repo_dir}/scripts/rebuild.sh" "$@"

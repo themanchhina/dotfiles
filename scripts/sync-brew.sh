@@ -13,11 +13,9 @@ brew_bin="$(command -v brew || echo "/opt/homebrew/bin/brew")"
 
 echo "==> Auditing Homebrew packages against darwin.nix..."
 
-# Ensure Nix environment is active
-if [[ -e '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' ]]; then
-  # shellcheck disable=SC1091
-  . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
-fi
+# shellcheck disable=SC1091
+source "${repo_dir}/scripts/lib/utils.sh"
+source_nix_env
 
 # Get installed top-level formulae, all formulae, and casks
 installed_leaves="$("${brew_bin}" leaves 2>/dev/null | sort)"

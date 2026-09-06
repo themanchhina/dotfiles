@@ -33,76 +33,10 @@ hdrun() {
   HERDR_AGENT="$agent" docker run -it "$@"
 }
 
-# Herdr Git Worktree Helpers
-# Fast CLI wrappers for Herdr-managed worktrees
-unalias hwt 2>/dev/null || true
-
-hwt() {
-  local cmd="$1"
-  case "$cmd" in
-    add|new|create)
-      shift
-      local branch="$1"
-      local base="${2:-HEAD}"
-      if [[ -z "$branch" ]]; then
-        echo "Usage: hwt add <branch-name> [base-ref]"
-        return 1
-      fi
-      if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-        echo "Error: Not inside a git repository" >&2
-        return 1
-      fi
-      command herdr worktree create --cwd "$PWD" --branch "$branch" --base "$base" --focus
-      ;;
-    ls|list|"")
-      command herdr worktree list --cwd "$PWD"
-      ;;
-    rm|remove)
-      shift
-      command herdr worktree remove "$@"
-      ;;
-    *)
-      command herdr worktree "$@"
-      ;;
-  esac
-}
-
-# Standalone Git Worktree Helpers
+# Git Worktree (Herdr manages multiplexer worktrees natively via prefix+G or `herdr worktree`)
 alias gwt="git worktree"
 alias gwtl="git worktree list"
 alias gwtp="git worktree prune"
-
-# Quick worktree creation: gwta <branch> [base]
-# Creates worktree under .worktrees/<branch> and enters it
-unalias gwta gwtclean 2>/dev/null || true
-
-gwta() {
-  local branch="$1"
-  local base="${2:-HEAD}"
-  if [[ -z "$branch" ]]; then
-    echo "Usage: gwta <branch-name> [base-ref]"
-    return 1
-  fi
-  local repo_root
-  repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
-    echo "Error: Not inside a git repository" >&2
-    return 1
-  }
-  local wt_path="${repo_root}/.worktrees/${branch}"
-  mkdir -p "${repo_root}/.worktrees"
-  git worktree add -b "$branch" "$wt_path" "$base" && cd "$wt_path"
-}
-
-# Safely prune worktrees and merged branches
-gwtclean() {
-  local repo_root
-  repo_root="$(git rev-parse --show-toplevel 2>/dev/null)" || {
-    echo "Not inside a git repository"
-    return 1
-  }
-  echo "Pruning worktree metadata..."
-  git worktree prune -v
-}
 
 # Dotfiles & System Management
 DOTFILES_DIR="${DOTFILES_DIR:-$HOME/code/daman/dotfiles}"
