@@ -95,8 +95,8 @@ toggle_sidebar = "prefix+b"
 # Open pane scrollback in $EDITOR (Neovim)
 edit_scrollback = "prefix+e"
 
-# Image clipboard paste for remote agents
-remote_image_paste = "ctrl+v"
+# Image clipboard paste for remote agents (prefixed so Ctrl-v remains available for Neovim visual block)
+remote_image_paste = "prefix+ctrl+v"
 
 # Session-modal Lazygit popup (floating modal overlay)
 [[keys.command]]

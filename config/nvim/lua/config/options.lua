@@ -243,7 +243,11 @@ end
 -- while on master branch they were nvim-treesitter.textobjects.<submod>.
 -- Using a fallback loader in package.loaders ensures that disk modules are found first without being shadowed,
 -- while smoothly resolving whichever naming convention the installed plugin version uses.
+local resolving = {}
 table.insert(package.loaders, function(modname)
+  if resolving[modname] then
+    return nil
+  end
   local alt_mod
   if modname:match("^nvim%-treesitter%.textobjects%.") then
     alt_mod = modname:gsub("^nvim%-treesitter%.textobjects%.", "nvim-treesitter-textobjects.")
@@ -252,7 +256,9 @@ table.insert(package.loaders, function(modname)
   end
 
   if alt_mod then
+    resolving[modname] = true
     local ok, res = pcall(require, alt_mod)
+    resolving[modname] = nil
     if ok and type(res) == "table" then
       return function()
         return res

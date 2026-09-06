@@ -91,7 +91,8 @@ else
   if ssh "${target_host}" "command -v rsync >/dev/null 2>&1"; then
     rsync -az --delete --exclude='.git' "${repo_dir}/config/nvim/" "${target_host}:~/.config/nvim/"
   else
-    # Fallback to tar stream over ssh if rsync is not installed on remote
+    # Fallback to tar stream over ssh if rsync is not installed on remote (clean first to avoid ghost files)
+    ssh "${target_host}" "rm -rf ~/.config/nvim && mkdir -p ~/.config/nvim"
     (cd "${repo_dir}/config/nvim" && tar -cf - .) | ssh "${target_host}" "tar -xf - -C ~/.config/nvim"
   fi
 

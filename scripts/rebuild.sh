@@ -31,7 +31,11 @@ EOF
 done
 
 # Resolve target user, host, and dotfiles directory from args, environment, or system
-target_user="${DARWIN_USER:-${USER:-$(id -un)}}"
+target_user="${DARWIN_USER:-${SUDO_USER:-${USER:-$(id -un)}}}"
+if [[ "${target_user}" == "root" ]]; then
+  echo "Error: Cannot rebuild as root. Run without sudo (sudo will be prompted automatically)." >&2
+  exit 1
+fi
 target_host="${target_host:-${DARWIN_HOST:-${HOSTNAME:-${HOST:-$(scutil --get LocalHostName 2>/dev/null || hostname -s)}}}}"
 export USER="${target_user}"
 export HOSTNAME="${target_host}"
