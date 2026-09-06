@@ -262,6 +262,34 @@ table.insert(package.loaders, function(modname)
   return nil
 end)
 
+-- Backwards compatibility shims for mason-lspconfig v2.0+ refactor.
+-- In mason-lspconfig v2.0, mason-lspconfig.mappings.server and mason-lspconfig.mappings.filetype
+-- were centralized into mason-lspconfig.mappings. These shims prevent errors when plugins
+-- or older code require the legacy submodules.
+if not package.preload["mason-lspconfig.mappings.server"] then
+  package.preload["mason-lspconfig.mappings.server"] = function()
+    local ok, mappings = pcall(require, "mason-lspconfig.mappings")
+    if ok and mappings.get_mason_map then
+      return mappings.get_mason_map()
+    end
+    return {
+      package_to_lspconfig = {},
+      lspconfig_to_package = {},
+    }
+  end
+end
+
+if not package.preload["mason-lspconfig.mappings.filetype"] then
+  package.preload["mason-lspconfig.mappings.filetype"] = function()
+    local ok, mappings = pcall(require, "mason-lspconfig.mappings")
+    if ok and mappings.get_filetype_map then
+      return mappings.get_filetype_map()
+    end
+    return {}
+  end
+end
+
+
 
 
 
