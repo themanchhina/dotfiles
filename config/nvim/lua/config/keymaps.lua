@@ -14,3 +14,7 @@ vim.keymap.set("n", "<leader>v", "<C-w>v", { desc = "Split Window Right (Vertica
 vim.keymap.set("n", "<leader>-", "<C-w>s", { desc = "Split Window Below (Horizontal)" })
 vim.keymap.set("n", "<leader>wx", "<C-w>c", { desc = "Close Current Window" })
 
+-- Auto-copy mouse selection on release (matches Herdr's copy-on-select mental model)
+-- Automatically copies visual selection to system clipboard upon mouse release
+vim.keymap.set("v", "<LeftRelease>", [["+y<LeftRelease>]], { desc = "Auto-copy mouse selection to clipboard" })
+
