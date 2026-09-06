@@ -109,6 +109,7 @@ DOTFILES_DIR="${DOTFILES_DIR:-$HOME/code/daman/dotfiles}"
 alias rebuild="$DOTFILES_DIR/scripts/rebuild.sh"
 alias update="$DOTFILES_DIR/scripts/update.sh"
 alias sync-brew="$DOTFILES_DIR/scripts/sync-brew.sh"
+alias sync-remote="$DOTFILES_DIR/scripts/sync-remote.sh"
 alias nix-clean="nix-collect-garbage --delete-older-than 30d"
 # Local alias overrides (machine-specific)
 [[ -f ~/.zsh_aliases_local ]] && source ~/.zsh_aliases_local
