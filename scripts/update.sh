@@ -35,7 +35,7 @@ echo "==> Updating Nix flake inputs..."
 "${nix_bin}" flake update --flake "path:${repo_dir}"
 
 echo "==> Rebuilding system..."
-"${repo_dir}/scripts/rebuild.sh"
+"${repo_dir}/scripts/rebuild.sh" "$@"
 
 if [[ -x /opt/homebrew/bin/brew ]]; then
   echo "==> Upgrading Homebrew packages..."

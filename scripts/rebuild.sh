@@ -2,9 +2,37 @@
 set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+clean=0
+target_host=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --clean|-c)
+      clean=1
+      shift
+      ;;
+    -h|--help)
+      cat << 'EOF'
+Usage: rebuild.sh [host] [options]
+
+Options:
+  --clean, -c      Purge Neovim plugin cache and reinstall fresh from lockfile
+  -h, --help       Show this help message
+EOF
+      exit 0
+      ;;
+    *)
+      if [[ -z "${target_host}" ]]; then
+        target_host="$1"
+      fi
+      shift
+      ;;
+  esac
+done
+
 # Resolve target user, host, and dotfiles directory from args, environment, or system
 target_user="${DARWIN_USER:-${USER:-$(id -un)}}"
-target_host="${1:-${DARWIN_HOST:-${HOSTNAME:-${HOST:-$(scutil --get LocalHostName 2>/dev/null || hostname -s)}}}}"
+target_host="${target_host:-${DARWIN_HOST:-${HOSTNAME:-${HOST:-$(scutil --get LocalHostName 2>/dev/null || hostname -s)}}}}"
 export USER="${target_user}"
 export HOSTNAME="${target_host}"
 export HOST="${target_host}"
@@ -73,6 +101,10 @@ fi
 
 # Clean up stale legacy treesitter files and restore lockfile commits headlessly
 if command -v nvim >/dev/null 2>&1; then
+  if [[ ${clean} -eq 1 ]]; then
+    echo "==> Purging Neovim plugin caches (~/.local/share/nvim/lazy, site, cache, state)..."
+    rm -rf "${HOME}/.local/share/nvim/lazy" "${HOME}/.local/share/nvim/site" "${HOME}/.cache/nvim" "${HOME}/.local/state/nvim"
+  fi
   rm -f "${HOME}/.local/share/nvim/lazy/nvim-treesitter/lua/nvim-treesitter.lua"
   if [[ -d "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser" ]]; then
     rm -rf "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser"

@@ -85,12 +85,6 @@ if [[ -d /nix/var/nix/profiles/default/bin ]]; then
 fi
 
 echo "==> Applying system configuration via rebuild script..."
-"${repo_dir}/scripts/rebuild.sh"
-
-# Pre-warm Neovim plugins and treesitter parsers headlessly so the first launch is instant
-if command -v nvim >/dev/null 2>&1; then
-  echo "==> Pre-warming Neovim plugins and treesitter parsers..."
-  nvim --headless "+Lazy! restore" "+qa" >/dev/null 2>&1 || true
-fi
+"${repo_dir}/scripts/rebuild.sh" "$@"
 
 echo "==> Bootstrap completed successfully!"
