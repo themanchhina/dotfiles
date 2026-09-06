@@ -5,6 +5,8 @@
 
 set -euo pipefail
 
+export DISABLE_AUTO_UPDATE="true"
+export OSH_DISABLE_AUTO_UPDATE="true"
 export PATH="${HOME}/.local/bin:${HOME}/.local/share/fnm:${PATH}"
 mkdir -p "${HOME}/.local/bin" "${HOME}/.local/share"
 
@@ -66,7 +68,7 @@ if command -v herdr >/dev/null 2>&1 && herdr --version >/dev/null 2>&1; then
   echo "     ✓ herdr: $(herdr --version 2>/dev/null || echo 'installed')"
 else
   echo "     -> Installing Herdr..."
-  curl -fsSL https://herdr.dev/install.sh | sh
+  curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR="${HOME}/.local/bin" sh
   echo "     ✓ herdr installed: $(${HOME}/.local/bin/herdr --version 2>/dev/null || echo 'installed')"
 fi
 
@@ -152,7 +154,7 @@ if command -v uv >/dev/null 2>&1 && uv --version >/dev/null 2>&1; then
   echo "     ✓ uv: $(uv --version | head -n1)"
 else
   echo "     -> Installing uv..."
-  curl -LsSf https://astral.sh/uv/install.sh | sh
+  curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="${HOME}/.local/bin" sh
   echo "     ✓ uv installed: $(${HOME}/.local/bin/uv --version 2>/dev/null || echo 'installed')"
 fi
 
