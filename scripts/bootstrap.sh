@@ -10,8 +10,8 @@ if [[ "$(uname -s)" != "Darwin" || "$(uname -m)" != "arm64" ]]; then
   exit 1
 fi
 
-current_user="$(id -un)"
-current_host="$(scutil --get LocalHostName 2>/dev/null || hostname -s)"
+current_user="${DARWIN_USER:-${USER:-$(id -un)}}"
+current_host="${DARWIN_HOST:-${HOSTNAME:-${HOST:-$(scutil --get LocalHostName 2>/dev/null || hostname -s)}}}"
 echo "==> Bootstrapping for user '${current_user}' on host '${current_host}'..."
 
 # Ensure Xcode Command Line Tools are installed (required for Homebrew and native builds)

@@ -3,8 +3,8 @@ set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # Resolve target user, host, and dotfiles directory from args, environment, or system
-target_user="${USER:-$(id -un)}"
-target_host="${1:-${DARWIN_HOST:-${HOSTNAME:-$(scutil --get LocalHostName 2>/dev/null || hostname -s)}}}"
+target_user="${DARWIN_USER:-${USER:-$(id -un)}}"
+target_host="${1:-${DARWIN_HOST:-${HOSTNAME:-${HOST:-$(scutil --get LocalHostName 2>/dev/null || hostname -s)}}}}"
 export USER="${target_user}"
 export HOSTNAME="${target_host}"
 export HOST="${target_host}"

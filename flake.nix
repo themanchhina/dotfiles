@@ -30,8 +30,36 @@
       manualDotfilesDir = "";
       # -----------------------------------------------------------------------
 
-      envUser = let u = builtins.getEnv "DARWIN_USER"; in if u != "" then u else builtins.getEnv "USER";
-      envHost = let h = builtins.getEnv "DARWIN_HOST"; in if h != "" then h else let h2 = builtins.getEnv "HOSTNAME"; in if h2 != "" then h2 else builtins.getEnv "HOST";
+      envUser =
+        let
+          darwinUser = builtins.getEnv "DARWIN_USER";
+          sudoUser = builtins.getEnv "SUDO_USER";
+          normalUser = builtins.getEnv "USER";
+        in
+        if darwinUser != "" then
+          darwinUser
+        else if sudoUser != "" then
+          sudoUser
+        else if normalUser != "" && normalUser != "root" then
+          normalUser
+        else
+          "";
+
+      envHost =
+        let
+          darwinHost = builtins.getEnv "DARWIN_HOST";
+          hostName = builtins.getEnv "HOSTNAME";
+          host = builtins.getEnv "HOST";
+        in
+        if darwinHost != "" then
+          darwinHost
+        else if hostName != "" then
+          hostName
+        else if host != "" then
+          host
+        else
+          "";
+
       envDotfiles = builtins.getEnv "DOTFILES_DIR";
 
       # Use manual override if set, otherwise fallback to env, otherwise fallback to "default" (for pure CI)
