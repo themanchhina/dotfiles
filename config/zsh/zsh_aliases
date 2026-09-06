@@ -1,5 +1,19 @@
-# Antigravity CLI
-alias gi="agy --dangerously-skip-permissions"
+# AI Coding Agents & Multiplexer
+alias hr="herdr"
+
+_hagent() {
+  local -a base=("${(@s/ /)1}")
+  shift
+  if [[ $# -gt 0 && "$1" != -* ]]; then
+    local name="$1"; shift
+    [[ -n "${HERDR_PANE_ID:-}" ]] && command herdr agent rename "$HERDR_PANE_ID" "$name" >/dev/null 2>&1
+  fi
+  command "${base[@]}" "$@"
+}
+
+gi() { _hagent "agy --dangerously-skip-permissions" "$@"; }
+co() { _hagent "codex --yolo" "$@"; }
+cc() { _hagent "claude" "$@"; }
 
 # Editor & Tools
 alias vi="nvim"
