@@ -238,5 +238,31 @@ if not package.preload["nvim-treesitter.statusline"] then
   end
 end
 
+-- Fallback loader for backwards/forwards compatibility between nvim-treesitter.textobjects.* and nvim-treesitter-textobjects.*
+-- In nvim-treesitter-textobjects main branch, submodules are named nvim-treesitter-textobjects.<submod>
+-- while on master branch they were nvim-treesitter.textobjects.<submod>.
+-- Using a fallback loader in package.loaders ensures that disk modules are found first without being shadowed,
+-- while smoothly resolving whichever naming convention the installed plugin version uses.
+table.insert(package.loaders, function(modname)
+  local alt_mod
+  if modname:match("^nvim%-treesitter%.textobjects%.") then
+    alt_mod = modname:gsub("^nvim%-treesitter%.textobjects%.", "nvim-treesitter-textobjects.")
+  elseif modname:match("^nvim%-treesitter%-textobjects%.") then
+    alt_mod = modname:gsub("^nvim%-treesitter%-textobjects%.", "nvim-treesitter.textobjects.")
+  end
+
+  if alt_mod then
+    local ok, res = pcall(require, alt_mod)
+    if ok and type(res) == "table" then
+      return function()
+        return res
+      end
+    end
+  end
+  return nil
+end)
+
+
+
 
 

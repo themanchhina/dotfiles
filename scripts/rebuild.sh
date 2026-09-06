@@ -47,7 +47,7 @@ safe_path="${PATH}:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin:
 
 if [[ -x /run/current-system/sw/bin/darwin-rebuild ]]; then
   echo "==> Applying configuration via installed darwin-rebuild..."
-  exec sudo env \
+  sudo env \
     "PATH=${safe_path}" \
     "USER=${target_user}" \
     "HOSTNAME=${target_host}" \
@@ -56,17 +56,30 @@ if [[ -x /run/current-system/sw/bin/darwin-rebuild ]]; then
     "DARWIN_HOST=${target_host}" \
     "DOTFILES_DIR=${DOTFILES_DIR}" \
     /run/current-system/sw/bin/darwin-rebuild switch --impure --flake "${flake}"
+else
+  echo "==> Applying configuration via locked nix-darwin runner..."
+  sudo env \
+    "PATH=${safe_path}" \
+    "USER=${target_user}" \
+    "HOSTNAME=${target_host}" \
+    "HOST=${target_host}" \
+    "DARWIN_USER=${target_user}" \
+    "DARWIN_HOST=${target_host}" \
+    "DOTFILES_DIR=${DOTFILES_DIR}" \
+    "${nix_bin}" run --impure \
+    "path:${repo_dir}#darwinConfigurations.default.config.system.build.darwin-rebuild" \
+    -- switch --impure --flake "${flake}"
 fi
 
-echo "==> Applying configuration via locked nix-darwin runner..."
-exec sudo env \
-  "PATH=${safe_path}" \
-  "USER=${target_user}" \
-  "HOSTNAME=${target_host}" \
-  "HOST=${target_host}" \
-  "DARWIN_USER=${target_user}" \
-  "DARWIN_HOST=${target_host}" \
-  "DOTFILES_DIR=${DOTFILES_DIR}" \
-  "${nix_bin}" run --impure \
-  "path:${repo_dir}#darwinConfigurations.default.config.system.build.darwin-rebuild" \
-  -- switch --impure --flake "${flake}"
+# Clean up stale legacy treesitter files and restore lockfile commits headlessly
+if command -v nvim >/dev/null 2>&1; then
+  rm -f "${HOME}/.local/share/nvim/lazy/nvim-treesitter/lua/nvim-treesitter.lua"
+  if [[ -d "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser" ]]; then
+    rm -rf "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser"
+  fi
+  echo "==> Restoring Neovim plugins and treesitter parsers..."
+  nvim --headless "+Lazy! restore" "+qa" >/dev/null 2>&1 || true
+fi
+
+echo "==> Rebuild completed successfully!"
+
