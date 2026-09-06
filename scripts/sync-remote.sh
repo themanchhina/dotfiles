@@ -106,11 +106,13 @@ if [[ ${install_tools} -eq 1 ]]; then
           arch_x86="x86_64"
           arch_amd="amd64"
           nvim_arch="x86_64"
+          lazygit_arch="x86_64"
           ;;
         aarch64|arm64)
           arch_x86="aarch64"
           arch_amd="arm64"
           nvim_arch="arm64"
+          lazygit_arch="arm64"
           ;;
         *)
           echo "     ❌ Unsupported architecture for automated binary install: ${raw_arch}"
@@ -196,7 +198,7 @@ if [[ ${install_tools} -eq 1 ]]; then
         lg_tag="${lg_tag:-v0.65.0}"
         lg_ver="${lg_tag#v}"
         tmp_dir="$(mktemp -d)"
-        curl -fsSL "https://github.com/jesseduffield/lazygit/releases/download/${lg_tag}/lazygit_${lg_ver}_linux_${arch_amd}.tar.gz" \
+        curl -fsSL "https://github.com/jesseduffield/lazygit/releases/download/${lg_tag}/lazygit_${lg_ver}_linux_${lazygit_arch}.tar.gz" \
           | tar -xz -C "${tmp_dir}"
         find "${tmp_dir}" -name lazygit -type f -exec mv {} "${HOME}/.local/bin/lazygit" \;
         chmod +x "${HOME}/.local/bin/lazygit"
