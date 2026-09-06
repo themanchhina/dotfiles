@@ -53,7 +53,7 @@ for link_path in \
 done
 
 # Ensure strict SSH directory and file permissions
-mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh"
+mkdir -p "${HOME}/.ssh/sockets" && chmod 700 "${HOME}/.ssh" "${HOME}/.ssh/sockets"
 if [[ -f "${repo_dir}/config/ssh/config" ]]; then
   chmod 600 "${repo_dir}/config/ssh/config"
 fi

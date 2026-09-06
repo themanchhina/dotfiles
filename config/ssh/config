@@ -38,5 +38,11 @@ Host india
 Host *
   AddKeysToAgent yes
   UseKeychain yes
-  ServerAliveInterval 60
+  ServerAliveInterval 15
+  ServerAliveCountMax 4
+  TCPKeepAlive yes
+  IPQoS none
+  ControlMaster auto
+  ControlPath ~/.ssh/sockets/%r@%h-%p
+  ControlPersist 10m
   SendEnv TERM_PROGRAM
