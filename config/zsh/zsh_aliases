@@ -26,7 +26,7 @@ _hagent() {
 
 gi() { _hagent "agy --dangerously-skip-permissions" "$@"; }
 co() { _hagent "codex --yolo" "$@"; }
-cc() { _hagent "claude" "$@"; }
+cc() { _hagent "claude --dangerously-skip-permissions" "$@"; }
 
 # Editor & Tools
 alias vi="nvim"
