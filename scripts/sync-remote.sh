@@ -19,12 +19,13 @@ Arguments:
   <ssh-host>       SSH host name (e.g. 'india', 'home', or 'user@host.com')
 
 Options:
+  --clean          Purge remote Neovim plugin cache and reinstall fresh from lockfile
   --dry-run        Show what would be copied without making changes
   -h, --help       Show this help message
 
 Examples:
   $(basename "$0") india
-  $(basename "$0") home
+  $(basename "$0") home --clean
   $(basename "$0") daman@server.example.com
 EOF
   exit 1
@@ -38,8 +39,13 @@ target_host="$1"
 shift
 
 dry_run=0
+clean=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
+    --clean)
+      clean=1
+      shift
+      ;;
     --dry-run)
       dry_run=1
       shift
@@ -90,15 +96,28 @@ else
   fi
 
   # Clean up stale legacy treesitter files and restore lockfile commits headlessly
-  ssh "${target_host}" 'bash -s' << 'REMOTE_NVIM_SYNC'
-    rm -f "${HOME}/.local/share/nvim/lazy/nvim-treesitter/lua/nvim-treesitter.lua"
-    if [[ -d "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser" ]]; then
-      rm -rf "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser"
+  if [[ ${dry_run} -eq 1 ]]; then
+    if [[ ${clean} -eq 1 ]]; then
+      echo "     [dry-run] remote: rm -rf ~/.local/share/nvim/lazy ~/.local/share/nvim/site ~/.cache/nvim ~/.local/state/nvim"
     fi
-    if command -v nvim >/dev/null 2>&1; then
-      nvim --headless "+Lazy! restore" "+qa" >/dev/null 2>&1 || true
-    fi
+    echo "     [dry-run] remote: nvim --headless '+Lazy! restore' '+qa'"
+  else
+    ssh "${target_host}" "bash -s -- ${clean}" << 'REMOTE_NVIM_SYNC'
+      clean_mode="$1"
+      if [[ "${clean_mode}" == "1" ]]; then
+        echo "     ==> Purging remote plugin caches (~/.local/share/nvim/lazy, site, cache)..."
+        rm -rf ~/.local/share/nvim/lazy ~/.local/share/nvim/site ~/.cache/nvim ~/.local/state/nvim
+      fi
+      rm -f "${HOME}/.local/share/nvim/lazy/nvim-treesitter/lua/nvim-treesitter.lua"
+      if [[ -d "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser" ]]; then
+        rm -rf "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser"
+      fi
+      if command -v nvim >/dev/null 2>&1; then
+        echo "     ==> Restoring Neovim plugins headlessly to match lockfile..."
+        nvim --headless "+Lazy! restore" "+qa" >/dev/null 2>&1 || true
+      fi
 REMOTE_NVIM_SYNC
+  fi
 fi
 
 # 3. Git configs
