@@ -27,13 +27,15 @@ config.default_cursor_style = "BlinkingBlock"
 config.cursor_blink_rate = 500
 
 -- Browser & Link Opening
--- Bypasses Herdr mouse capture so Cmd+Click or Shift+Click opens links in default browser
-config.bypass_mouse_reporting_modifiers = "SHIFT|CMD"
+-- Shift+Drag bypasses Herdr for native WezTerm selection.
+-- Cmd+Click opens links directly in default browser with bypass_mouse_reporting.
+config.bypass_mouse_reporting_modifiers = "SHIFT"
 config.mouse_bindings = {
   {
     event = { Up = { streak = 1, button = "Left" } },
     mods = "CMD",
     action = act.OpenLinkAtMouseCursor,
+    bypass_mouse_reporting = true,
   },
 }
 
