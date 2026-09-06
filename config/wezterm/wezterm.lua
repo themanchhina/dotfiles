@@ -28,12 +28,43 @@ config.cursor_blink_rate = 500
 
 -- Browser & Link Opening
 -- Shift+Drag bypasses Herdr for native WezTerm selection.
--- Cmd+Click opens links directly in default browser with bypass_mouse_reporting.
+-- Cmd+Click opens links directly in default browser.
 config.bypass_mouse_reporting_modifiers = "SHIFT"
 config.mouse_bindings = {
+  -- Intercept mouse Down so Herdr / multiplexer does not capture the click
+  {
+    event = { Down = { streak = 1, button = "Left" } },
+    mods = "CMD",
+    action = act.Nop,
+    bypass_mouse_reporting = true,
+  },
   {
     event = { Up = { streak = 1, button = "Left" } },
     mods = "CMD",
+    action = act.OpenLinkAtMouseCursor,
+    bypass_mouse_reporting = true,
+  },
+  {
+    event = { Down = { streak = 1, button = "Left" } },
+    mods = "SUPER",
+    action = act.Nop,
+    bypass_mouse_reporting = true,
+  },
+  {
+    event = { Up = { streak = 1, button = "Left" } },
+    mods = "SUPER",
+    action = act.OpenLinkAtMouseCursor,
+    bypass_mouse_reporting = true,
+  },
+  {
+    event = { Down = { streak = 1, button = "Left" } },
+    mods = "CMD|SHIFT",
+    action = act.Nop,
+    bypass_mouse_reporting = true,
+  },
+  {
+    event = { Up = { streak = 1, button = "Left" } },
+    mods = "CMD|SHIFT",
     action = act.OpenLinkAtMouseCursor,
     bypass_mouse_reporting = true,
   },
