@@ -18,6 +18,7 @@ echo "==> Bootstrapping for user '${USER}' on host '${HOSTNAME}'..."
 # Ensure Xcode Command Line Tools are installed (required for Homebrew and native builds)
 if ! xcode-select -p >/dev/null 2>&1; then
   echo "==> Xcode Command Line Tools not detected. Prompting installation..."
+  trap 'rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress' EXIT INT TERM
   touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
   xcode-select --install 2>/dev/null || true
   echo "Waiting for Xcode Command Line Tools to complete installation..."
@@ -25,6 +26,7 @@ if ! xcode-select -p >/dev/null 2>&1; then
     sleep 5
   done
   rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
+  trap - EXIT INT TERM
   echo "==> Xcode Command Line Tools installed."
 fi
 
@@ -33,12 +35,10 @@ echo "==> Running pre-flight migration checks..."
 
 # Back up ~/.config/nvim if it is an existing directory (prevent Home Manager collision)
 if [[ -d "${HOME}/.config/nvim" && ! -L "${HOME}/.config/nvim" ]]; then
-  echo "==> Backing up existing ~/.config/nvim directory to ~/.config/nvim.before-nix..."
-  mv "${HOME}/.config/nvim" "${HOME}/.config/nvim.before-nix"
+  backup_dir="${HOME}/.config/nvim.before-nix-$(date +%Y%m%d%H%M%S)"
+  echo "==> Backing up existing ~/.config/nvim directory to ${backup_dir}..."
+  mv "${HOME}/.config/nvim" "${backup_dir}"
 fi
-
-# Clean up stale legacy treesitter files that conflict with main branch
-clean_treesitter_legacy
 
 # Clean up broken symlinks across all managed paths to prevent Home Manager collisions
 for link_path in \

@@ -19,7 +19,7 @@ Arguments:
   <ssh-host>           SSH host name (e.g. 'india', 'home', or 'user@host.com')
 
 Options:
-  -t, --install-tools  Install missing CLI tools (nvim, herdr, rg, fd, lazygit, jq, fzf, uv, fnm, zoxide) via curl into ~/.local/bin
+  -t, --install-tools  Install missing CLI tools (nvim, herdr, rg, fd, lazygit, jq, fzf, uv, fnm, tree-sitter) via curl into ~/.local/bin
   --clean              Purge remote Neovim plugin cache and reinstall fresh from lockfile
   --dry-run            Show what would be copied without making changes
   -h, --help           Show this help message
@@ -121,17 +121,13 @@ else
   scp -q -r "${repo_dir}/config/nvim" "${target_host}:~/.config/nvim.tmp"
   ssh -T "${target_host}" "rm -rf ~/.config/nvim && mv ~/.config/nvim.tmp ~/.config/nvim" </dev/null
 
-  # Clean up stale legacy treesitter files and restore lockfile commits headlessly
+  # Restore lockfile commits headlessly (and purge cache if --clean)
   ssh -T "${target_host}" "bash -s -- ${clean}" << 'REMOTE_NVIM_SYNC'
     export PATH="${HOME}/.local/bin:${PATH}"
     clean_mode="$1"
     if [[ "${clean_mode}" == "1" ]]; then
       echo "     ==> Purging remote plugin caches (~/.local/share/nvim/lazy, site, cache)..."
       rm -rf ~/.local/share/nvim/lazy ~/.local/share/nvim/site ~/.cache/nvim ~/.local/state/nvim
-    fi
-    rm -f "${HOME}/.local/share/nvim/lazy/nvim-treesitter/lua/nvim-treesitter.lua"
-    if [[ -d "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser" ]]; then
-      rm -rf "${HOME}/.local/share/nvim/lazy/nvim-treesitter/parser"
     fi
     if command -v nvim >/dev/null 2>&1; then
       echo "     ==> Restoring Neovim plugins headlessly to match lockfile..."

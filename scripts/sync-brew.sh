@@ -2,7 +2,6 @@
 set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-darwin_file="${repo_dir}/darwin.nix"
 
 if ! command -v brew >/dev/null 2>&1 && [[ ! -x /opt/homebrew/bin/brew ]]; then
   echo "Error: Homebrew is not installed." >&2

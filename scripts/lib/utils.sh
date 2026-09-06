@@ -59,20 +59,6 @@ stage_untracked_for_nix() {
   fi
 }
 
-# Clean legacy Treesitter master-branch artifacts that conflict with main branch
-clean_treesitter_legacy() {
-  local nvim_share="${HOME}/.local/share/nvim"
-  local legacy_file="${nvim_share}/lazy/nvim-treesitter/lua/nvim-treesitter.lua"
-  local legacy_parser="${nvim_share}/lazy/nvim-treesitter/parser"
-
-  if [[ -f "${legacy_file}" ]]; then
-    rm -f "${legacy_file}"
-  fi
-  if [[ -d "${legacy_parser}" ]]; then
-    rm -rf "${legacy_parser}"
-  fi
-}
-
 # Restore Neovim plugins from lazy-lock.json headlessly
 restore_nvim_plugins() {
   local clean_mode="${1:-0}"
@@ -84,7 +70,6 @@ restore_nvim_plugins() {
   if [[ "${clean_mode}" -eq 1 ]]; then
     echo "==> Purging Neovim plugin caches (~/.local/share/nvim/lazy, site, cache, state)..."
     rm -rf "${HOME}/.local/share/nvim/lazy" "${HOME}/.local/share/nvim/site" "${HOME}/.cache/nvim" "${HOME}/.local/state/nvim"
-    clean_treesitter_legacy
   fi
 
   echo "==> Restoring Neovim plugins and treesitter parsers..."

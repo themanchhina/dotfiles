@@ -33,10 +33,7 @@ scripts/bootstrap.sh  first activation on a new Mac
 scripts/rebuild.sh    validate and apply the current configuration
 scripts/update.sh     intentionally update Nix inputs and Homebrew packages
 scripts/sync-brew.sh  audit and sync installed Homebrew packages with darwin.nix
-legacy/               old Antigen, Brewfile, iTerm, Terminal, and setup files
 ```
-
-Files in `legacy/` are retained only for reference and are not applied.
 
 ## Daily changes
 

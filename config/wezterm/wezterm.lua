@@ -75,11 +75,11 @@ config.keys = {
     mods = "CMD",
     action = act.PasteFrom("Clipboard"),
   },
-  -- Cmd + Shift + v sends Ctrl+V to Herdr (triggering remote image clipboard bridge)
+  -- Cmd + Shift + v sends prefix + Ctrl+V (\x02\x16) to Herdr (triggering remote image clipboard bridge)
   {
     key = "v",
     mods = "CMD|SHIFT",
-    action = act.SendKey({ key = "v", mods = "CTRL" }),
+    action = act.SendString("\x02\x16"),
   },
   -- Shift + Enter for newline across all harnesses (Claude, Codex, Agy)
   -- Sends Esc + Enter (\x1b\r), universally parsed as Alt/Option+Enter (newline without submit)

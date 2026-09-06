@@ -23,12 +23,14 @@ case "${raw_arch}" in
     arch_amd="amd64"
     nvim_arch="x86_64"
     lazygit_arch="x86_64"
+    ts_arch="x64"
     ;;
   aarch64|arm64)
     arch_x86="aarch64"
     arch_amd="arm64"
     nvim_arch="arm64"
     lazygit_arch="arm64"
+    ts_arch="arm64"
     ;;
   *)
     echo "     ❌ Unsupported architecture for automated binary install: ${raw_arch}"
@@ -170,13 +172,17 @@ else
   echo "     ✓ fnm installed"
 fi
 
-# 10. zoxide (Smarter cd - musl static)
-if command -v zoxide >/dev/null 2>&1 && zoxide --version >/dev/null 2>&1; then
-  echo "     ✓ zoxide: $(zoxide --version | head -n1)"
+# 10. tree-sitter CLI (required for Neovim 0.12 parser compilation)
+if command -v tree-sitter >/dev/null 2>&1 && tree-sitter --version >/dev/null 2>&1; then
+  echo "     ✓ tree-sitter: $(tree-sitter --version | head -n1)"
 else
-  echo "     -> Installing zoxide..."
-  curl -sSfL https://raw.githubusercontent.com/ajeetdsouza/zoxide/main/install.sh | sh
-  echo "     ✓ zoxide installed: $(${HOME}/.local/bin/zoxide --version 2>/dev/null || echo 'installed')"
+  echo "     -> Installing tree-sitter CLI..."
+  ts_tag="$(get_latest_github_tag "tree-sitter/tree-sitter")"
+  ts_tag="${ts_tag:-v0.27.0}"
+  curl -fsSL "https://github.com/tree-sitter/tree-sitter/releases/download/${ts_tag}/tree-sitter-linux-${ts_arch}.gz" \
+    | gzip -dc > "${HOME}/.local/bin/tree-sitter"
+  chmod +x "${HOME}/.local/bin/tree-sitter"
+  echo "     ✓ tree-sitter installed: $(${HOME}/.local/bin/tree-sitter --version | head -n1)"
 fi
 
 echo "     ✅ Remote CLI tools check complete!"
