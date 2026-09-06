@@ -23,7 +23,7 @@ position = "bottom-center"
 
 [ui.sidebar.agents]
 rows = [
-  ["state_icon", { token = "pane", fg = "#7dcfff", bold = true, dim = false }],
+  ["state_icon", { token = "tab", fg = "#7dcfff", bold = true, dim = false }],
   ["workspace"],
 ]
 
