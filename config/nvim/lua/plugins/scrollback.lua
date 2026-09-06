@@ -1,9 +1,10 @@
 return {
   {
     "m00qek/baleia.nvim",
-    cmd = { "BaleiaColorize", "BaleiaLogs" },
+    lazy = false,
     opts = {
       line_starts_at = 1,
+      async = false,
     },
     config = function(_, opts)
       vim.g.baleia = require("baleia").setup(opts)

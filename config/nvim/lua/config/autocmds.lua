@@ -13,32 +13,41 @@ local function setup_scrollback_buffer(bufnr)
   if vim.b[bufnr].scrollback_setup_done then return end
   vim.b[bufnr].scrollback_setup_done = true
 
-  -- Colorize ANSI escape codes
+  -- Ensure buffer is modifiable before colorizing / stripping ANSI escape codes
+  vim.bo[bufnr].modifiable = true
+  vim.bo[bufnr].readonly = false
+
+  -- Colorize ANSI escape codes synchronously
+  local rendered = false
   if vim.g.baleia then
-    vim.g.baleia.once(bufnr)
+    local ok = pcall(vim.g.baleia.once, bufnr)
+    if ok then rendered = true end
   else
     local ok, baleia = pcall(require, "baleia")
     if ok and baleia then
-      baleia.setup({ line_starts_at = 1 }).once(bufnr)
-    else
-      -- Fast native Lua fallback: strip raw ANSI escape codes and carriage returns
-      local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-      local modified = false
-      for i, line in ipairs(lines) do
-        local clean = line:gsub("\27%[[0-9;?]*[a-zA-Z]", ""):gsub("\27%][^\7\27]*[\7\27\\]", ""):gsub("\r", "")
-        if clean ~= line then
-          lines[i] = clean
-          modified = true
-        end
-      end
-      if modified then
-        vim.bo[bufnr].modifiable = true
-        vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
-      end
+      local instance = baleia.setup({ line_starts_at = 1, async = false })
+      local render_ok = pcall(instance.once, bufnr)
+      if render_ok then rendered = true end
     end
   end
 
-  -- Buffer ergonomics for read-only inspection
+  if not rendered then
+    -- Fast native Lua fallback: strip raw ANSI escape codes and carriage returns
+    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+    local modified = false
+    for i, line in ipairs(lines) do
+      local clean = line:gsub("\27%[[0-9;?]*[a-zA-Z]", ""):gsub("\27%][^\7\27]*[\7\27\\]", ""):gsub("\r", "")
+      if clean ~= line then
+        lines[i] = clean
+        modified = true
+      end
+    end
+    if modified then
+      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+    end
+  end
+
+  -- Buffer ergonomics for read-only inspection (only after rendering completes)
   vim.bo[bufnr].buftype = "nofile"
   vim.bo[bufnr].bufhidden = "wipe"
   vim.bo[bufnr].swapfile = false
