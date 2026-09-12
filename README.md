@@ -74,7 +74,7 @@ This means:
 
 ## Remote hosts
 
-`scripts/sync-remote.sh` pushes the terminal and editor configuration to a remote Linux box over SSH. It is one-way and overwrites the remote copies.
+`scripts/sync-remote.sh` pushes the terminal, editor and Git configuration to a remote Linux box over SSH. It is one-way and overwrites the remote copies. Note it deletes the remote `~/.config/nvim` outright with no backup, unlike the local flow, so do not keep remote-only Neovim changes there.
 
 ```sh
 ./scripts/sync-remote.sh india                          # sync configs only
@@ -82,13 +82,17 @@ This means:
 ./scripts/sync-remote.sh india --dry-run                # print what would change
 ```
 
-It syncs the Herdr, Neovim, Git and Zsh configuration, appends `PATH`, `EDITOR` and `TERM_PROGRAM` to the remote `~/.zshrc` / `~/.bashrc`, and reloads a running Herdr server. `--install-tools` fetches prebuilt binaries by `curl` with no sudo; the Neovim build is GLIBC 2.17 compatible so it runs on older hosts. `--clean` additionally purges the remote Neovim plugin cache.
+It syncs the Herdr, Neovim, Git and Zsh configuration, appends `PATH`, `EDITOR` and `TERM_PROGRAM` to the remote `~/.zshrc` / `~/.bashrc`, and reloads a running Herdr server. `--install-tools` fetches prebuilt binaries by `curl` with no sudo; it prefers the GLIBC 2.17 compatible Neovim build for older hosts, though its fallback is the standard release, which needs a newer glibc. `--clean` additionally purges the remote Neovim plugin cache.
 
 It also generates `~/.config/git/local.conf` on non-Darwin hosts, which clears the macOS credential helper and applies the personal Git identity unconditionally. That file is owned by this script and is overwritten on every sync.
 
 ## Git identity
 
-The personal identity applies only inside `~/code/daman/`, and `user.useConfigOnly` is set. A repository outside those roots has no identity and `git commit` fails rather than silently attributing the commit to the personal address. Add another `includeIf` in `config/git/config` for any other root you work in.
+The personal identity applies only inside `~/code/daman/`, and `user.useConfigOnly` is set. A repository outside those roots has no identity, so rather than silently attributing a commit to the personal address, git refuses.
+
+That refusal is not always graceful. `commit`, `commit --amend`, `merge --no-ff`, `revert` and `tag -a` fail cleanly, but anything that commits mid-operation leaves state behind: `rebase` stops with a detached HEAD and a `.git/rebase-merge` to `git rebase --abort`, and `cherry-pick` leaves `CHERRY_PICK_HEAD`. Because `pull.rebase` is true, a plain `git pull` on a diverged branch hits the rebase path.
+
+So set an identity before working in a new root, either per repository with `git config user.email`, or by adding another `includeIf` in `config/git/config`.
 
 ## Host-specific notes
 

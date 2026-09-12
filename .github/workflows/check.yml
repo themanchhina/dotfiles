@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   check:
-    runs-on: macos-14
+    runs-on: macos-15
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -28,5 +28,6 @@ jobs:
       - name: Validate shell scripts syntax
         run: bash -n scripts/*.sh scripts/lib/*.sh
 
+      # The macOS runner images ship no shellcheck; nix is already installed above.
       - name: Lint shell scripts
-        run: shellcheck --severity=warning scripts/*.sh scripts/lib/*.sh
+        run: nix run nixpkgs#shellcheck -- --severity=warning scripts/*.sh scripts/lib/*.sh

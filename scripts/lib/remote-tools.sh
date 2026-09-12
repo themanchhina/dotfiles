@@ -48,10 +48,12 @@ get_latest_github_tag() {
 }
 
 # Assign inside `if` or set -e aborts here; empty output means a 0-byte binary bash ran as an empty script.
+# </dev/null is load-bearing: sync-remote.sh feeds this script to bash on stdin,
+# so a probe that reads stdin swallows the rest of the installer and exits 0.
 confirm_installed() {
   local name="$1"; shift
   local out
-  if out="$("$@" 2>&1)" && [[ -n "${out}" ]]; then
+  if out="$("$@" </dev/null 2>&1)" && [[ -n "${out}" ]]; then
     echo "     ✓ ${name} installed: ${out%%$'\n'*}"
   else
     echo "     ✗ ${name} installed but not runnable: ${out%%$'\n'*}" >&2

@@ -1,9 +1,8 @@
 IgnoreUnknown UseKeychain
 
-# Include local uncommitted configurations (machine-specific or private servers)
-Include ~/.ssh/config.local
-
-# Keep IdentitiesOnly per-host: globally it also excludes agent keys.
+# Per-host, not global: globally IdentitiesOnly also excludes every agent key,
+# leaving unlisted hosts with no identity at all. Above the Include so a local
+# override cannot disable the key isolation these three GitHub accounts need.
 Host github.com themanchhina
   HostName github.com
   User git
@@ -22,21 +21,27 @@ Host amarpreet
   IdentityFile ~/.ssh/amarpreet
   IdentitiesOnly yes
 
+# Include local uncommitted configurations (machine-specific or private servers)
+Include ~/.ssh/config.local
+
 Host aamir
   User daman
   HostName home.aamirahmad.me
   Port 22000
   IdentityFile ~/.ssh/aamir
+  IdentitiesOnly yes
 
 Host home
   User daman
   HostName home.damanchhina.com
   IdentityFile ~/.ssh/daman
+  IdentitiesOnly yes
 
 Host india
   User daman
   HostName india.damanchhina.com
   IdentityFile ~/.ssh/daman
+  IdentitiesOnly yes
 
 Host *
   AddKeysToAgent yes

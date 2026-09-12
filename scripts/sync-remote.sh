@@ -180,23 +180,21 @@ if [[ ${dry_run} -eq 1 ]]; then
   echo "     [dry-run] append PATH (~/.local/bin, ~/.local/share/fnm), EDITOR=nvim, TERM_PROGRAM=WezTerm and zsh_aliases sourcing to remote ~/.zshrc / ~/.bashrc"
 else
   ssh -T "${target_host}" 'bash -s' << 'REMOTE_SCRIPT'
-    # Marker must be unique to the line written; '.local/bin' matched foreign exports.
+    # Markers are script-owned sentinels: matching the payload instead caught
+    # unrelated pre-existing exports and suppressed the append.
     ensure_line() {
       local rc="$1" marker="$2" block="$3"
-      grep -qF "${marker}" "${rc}" 2>/dev/null || printf '%b' "${block}" >> "${rc}"
+      grep -qF "dotfiles-managed:${marker}" "${rc}" 2>/dev/null && return 0
+      printf '\n# dotfiles-managed:%s\n%b' "${marker}" "${block}" >> "${rc}"
     }
 
     setup_rc() {
       local rc="$1"
-      ensure_line "${rc}" '$HOME/.local/share/fnm' \
-        '\n# User local binaries\nexport PATH="$HOME/.local/bin:$HOME/.local/share/fnm:$PATH"\n'
+      ensure_line "${rc}" path 'export PATH="$HOME/.local/bin:$HOME/.local/share/fnm:$PATH"\n'
       # herdr's edit_scrollback execs $EDITOR; unset, it falls back to vi.
-      ensure_line "${rc}" 'EDITOR:-nvim' \
-        '\n# Editor for Herdr scrollback and git\nexport EDITOR="${EDITOR:-nvim}"\nexport VISUAL="${VISUAL:-$EDITOR}"\n'
-      ensure_line "${rc}" 'TERM_PROGRAM:-WezTerm' \
-        '\n# Ensure terminal identity for Herdr notifications\nexport TERM_PROGRAM="${TERM_PROGRAM:-WezTerm}"\n'
-      ensure_line "${rc}" '~/.zsh_aliases' \
-        '[[ -f ~/.zsh_aliases ]] && source ~/.zsh_aliases\n'
+      ensure_line "${rc}" editor 'export EDITOR="${EDITOR:-nvim}"\nexport VISUAL="${VISUAL:-$EDITOR}"\n'
+      ensure_line "${rc}" term-program 'export TERM_PROGRAM="${TERM_PROGRAM:-WezTerm}"\n'
+      ensure_line "${rc}" aliases '[[ -f ~/.zsh_aliases ]] && source ~/.zsh_aliases\n'
     }
 
     if [[ -f ~/.zshrc || ! -f ~/.bashrc ]]; then

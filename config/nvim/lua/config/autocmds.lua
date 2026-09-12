@@ -85,10 +85,16 @@ end
 local scrollback_group = vim.api.nvim_create_augroup("HerdrScrollback", { clear = true })
 
 -- The conversion is one-way, so restrict it to Herdr's own temp dump.
+-- Both sides need realpath: on macOS $TMPDIR is /var/... while the bufname
+-- arrives as /private/var/..., so a plain prefix match never fires.
+local function canonical(path)
+  return vim.fs.normalize(vim.uv.fs_realpath(path) or path)
+end
+
 local function in_tmpdir(path)
-  path = vim.fn.fnamemodify(path, ":p")
+  path = canonical(vim.fn.fnamemodify(path, ":p"))
   for _, dir in ipairs({ vim.env.TMPDIR or "/tmp", "/tmp" }) do
-    if vim.startswith(path, vim.fs.normalize(dir) .. "/") then return true end
+    if vim.startswith(path, canonical(dir) .. "/") then return true end
   end
   return false
 end

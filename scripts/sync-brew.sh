@@ -19,11 +19,13 @@ source "${repo_dir}/scripts/lib/utils.sh"
 source_nix_env
 nix_bin="$(find_nix_bin "${repo_dir}")"
 
-# Get installed top-level formulae, all formulae, casks, and taps
-installed_leaves="$("${brew_bin}" leaves 2>/dev/null | sort)"
+# Get installed top-level formulae, all formulae, casks, and taps.
+# `leaves` prints full names and `list` short ones, so strip the tap from both.
+installed_leaves="$("${brew_bin}" leaves 2>/dev/null | sed 's|.*/||' | sort)"
 all_installed_brews="$("${brew_bin}" list --formula 2>/dev/null | sort)"
 installed_casks="$("${brew_bin}" list --cask 2>/dev/null | sort)"
-installed_taps="$("${brew_bin}" tap 2>/dev/null | sort)"
+# homebrew/* are Homebrew's own and are never declared, so they are not drift.
+installed_taps="$("${brew_bin}" tap 2>/dev/null | grep -v '^homebrew/' | sort || true)"
 
 # Parse declared brews, casks, and taps via Nix evaluation (accurate, comments/formatting agnostic)
 # sub() strips the tap prefix: `brew list` reports short names only.

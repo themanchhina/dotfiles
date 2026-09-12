@@ -47,20 +47,6 @@ if [[ -d "${HOME}/.config/nvim" && ! -L "${HOME}/.config/nvim" ]]; then
   mv "${HOME}/.config/nvim" "${backup_dir}"
 fi
 
-# Discovered, not listed: a hardcoded copy of home.nix's paths drifts out of date.
-while IFS= read -r link_path; do
-  [[ -e "${link_path}" ]] && continue
-  case "$(readlink "${link_path}")" in
-    "${repo_dir}"/*)
-      echo "==> Removing stale broken symlink: ${link_path}"
-      rm "${link_path}"
-      ;;
-  esac
-done < <(
-  find "${HOME}" -maxdepth 1 -type l 2>/dev/null
-  find "${HOME}/.config" "${HOME}/.ssh" -maxdepth 2 -type l 2>/dev/null
-)
-
 # Ensure strict SSH directory and file permissions
 mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh"
 if [[ -f "${repo_dir}/config/ssh/config" ]]; then

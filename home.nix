@@ -103,7 +103,6 @@
     ];
 
     profileExtra = ''
-      export HOST="''${HOST:-$(scutil --get LocalHostName 2>/dev/null || hostname -s)}"
       [[ -x /opt/homebrew/bin/brew ]] && eval "$(/opt/homebrew/bin/brew shellenv)"
     '';
   };

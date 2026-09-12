@@ -110,7 +110,9 @@
 
   # Fixes `compinit:527: no such file or directory: .../site-functions/_brew`.
   # The `../..` resolves through the symlink into the store, so require -L.
-  system.activationScripts.extraActivation.text = ''
+  # postActivation, not extraActivation: the latter runs before nix-homebrew has
+  # created the prefix, so on a first activation the guard would always be false.
+  system.activationScripts.postActivation.text = ''
     if [ -L /opt/homebrew/Library/Homebrew ]; then
       if [ ! -e /opt/homebrew/completions ] || [ -L /opt/homebrew/completions ]; then
         ln -sfn /opt/homebrew/Library/Homebrew/../../completions /opt/homebrew/completions

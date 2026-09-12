@@ -17,7 +17,8 @@ local function first_executable(candidates)
   end
 end
 local copy_cmd = first_executable({ { "pbcopy" }, { "wl-copy" }, { "xclip", "-selection", "clipboard" }, { "xsel", "-bi" } })
-local paste_cmd = first_executable({ { "pbpaste" }, { "wl-paste" }, { "xclip", "-selection", "clipboard", "-o" }, { "xsel", "-b" } })
+-- wl-paste needs -n: it appends a newline otherwise, which reads back as linewise.
+local paste_cmd = first_executable({ { "pbpaste" }, { "wl-paste", "-n" }, { "xclip", "-selection", "clipboard", "-o" }, { "xsel", "-b" } })
 
 local function copy_with_osc52(reg)
   local osc52_copy = osc52.copy(reg)
@@ -37,10 +38,13 @@ local function copy_with_osc52(reg)
       io.stdout:flush()
     end)
 
-    -- 3. System pasteboard fallback if running in a session where it works
+    -- 3. System pasteboard fallback if running in a session where it works.
+    -- Linewise must keep its trailing newline: that is the only signal the paste
+    -- side has, so without it a yanked line comes back charwise.
     if copy_cmd then
+      local linewise = regtype == "V" or regtype == "l"
       pcall(function()
-        vim.fn.system(copy_cmd, text)
+        vim.fn.system(copy_cmd, linewise and (text .. "\n") or text)
       end)
     end
   end
