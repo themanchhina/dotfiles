@@ -25,24 +25,16 @@ find_nix_bin() {
   fi
 }
 
-# Resolve system user and host, exporting validated environment variables
+# Resolve the target user, exporting validated environment variables
 resolve_system_identity() {
-  local user_arg="${1:-}"
-  local host_arg="${2:-}"
-
-  local resolved_user="${user_arg:-${DARWIN_USER:-${SUDO_USER:-${USER:-$(id -un)}}}}"
+  local resolved_user="${1:-${DARWIN_USER:-${SUDO_USER:-${USER:-$(id -un)}}}}"
   if [[ "${resolved_user}" == "root" ]]; then
     echo "Error: Cannot run configuration as root. Run without sudo (sudo will be prompted automatically)." >&2
     return 1
   fi
 
-  local resolved_host="${host_arg:-${DARWIN_HOST:-${HOSTNAME:-${HOST:-$(scutil --get LocalHostName 2>/dev/null || hostname -s)}}}}"
-
   export USER="${resolved_user}"
-  export HOSTNAME="${resolved_host}"
-  export HOST="${resolved_host}"
   export DARWIN_USER="${resolved_user}"
-  export DARWIN_HOST="${resolved_host}"
 }
 
 # Warns but never fails: a plugin problem must not abort a good system switch.

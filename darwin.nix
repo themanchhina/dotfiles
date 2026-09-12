@@ -1,7 +1,5 @@
 {
   homeDirectory,
-  hostname,
-  lib,
   pkgs,
   system,
   username,
@@ -110,11 +108,10 @@
     };
   };
 
-  # Ensure Homebrew completions directory is symlinked from the Nix store Homebrew package.
-  # This fixes the intermittent `compinit:527: no such file or directory: /opt/homebrew/share/zsh/site-functions/_brew`
-  # error caused when nix-homebrew symlinks Library/Homebrew but leaves completions unlinked.
+  # Fixes `compinit:527: no such file or directory: .../site-functions/_brew`.
+  # The `../..` resolves through the symlink into the store, so require -L.
   system.activationScripts.extraActivation.text = ''
-    if [ -d /opt/homebrew/Library/Homebrew ]; then
+    if [ -L /opt/homebrew/Library/Homebrew ]; then
       if [ ! -e /opt/homebrew/completions ] || [ -L /opt/homebrew/completions ]; then
         ln -sfn /opt/homebrew/Library/Homebrew/../../completions /opt/homebrew/completions
       fi

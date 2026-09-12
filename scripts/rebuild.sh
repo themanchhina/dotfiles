@@ -6,7 +6,6 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 source "${repo_dir}/scripts/lib/utils.sh"
 
 clean=0
-target_host=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -16,7 +15,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     -h|--help)
       cat << 'EOF'
-Usage: rebuild.sh [host] [options]
+Usage: rebuild.sh [options]
 
 Options:
   --clean, -c      Purge Neovim plugin cache and reinstall fresh from lockfile
@@ -24,22 +23,14 @@ Options:
 EOF
       exit 0
       ;;
-    -*)
-      echo "Error: unknown option '$1'. See --help." >&2
-      exit 1
-      ;;
     *)
-      if [[ -n "${target_host}" ]]; then
-        echo "Error: unexpected argument '$1' (host already set to '${target_host}')." >&2
-        exit 1
-      fi
-      target_host="$1"
-      shift
+      echo "Error: unexpected argument '$1'. See --help." >&2
+      exit 1
       ;;
   esac
 done
 
-resolve_system_identity "" "${target_host}"
+resolve_system_identity
 export DOTFILES_DIR="${DOTFILES_DIR:-${repo_dir}}"
 
 flake="path:${repo_dir}#default"
@@ -48,7 +39,7 @@ source_nix_env
 nix_bin="$(find_nix_bin "${repo_dir}")"
 
 # flake check skips darwinConfigurations; only an eval catches module errors.
-echo "==> Checking flake configuration for user '${USER}' on host '${HOSTNAME}'..."
+echo "==> Checking flake configuration for user '${USER}'..."
 "${nix_bin}" eval --impure --raw \
   "path:${repo_dir}#darwinConfigurations.default.config.system.build.toplevel.drvPath" \
   >/dev/null
@@ -61,10 +52,7 @@ if [[ -x /run/current-system/sw/bin/darwin-rebuild ]]; then
   sudo env \
     "PATH=${safe_path}" \
     "USER=${USER}" \
-    "HOSTNAME=${HOSTNAME}" \
-    "HOST=${HOST}" \
     "DARWIN_USER=${DARWIN_USER}" \
-    "DARWIN_HOST=${DARWIN_HOST}" \
     "DOTFILES_DIR=${DOTFILES_DIR}" \
     /run/current-system/sw/bin/darwin-rebuild switch --impure --flake "${flake}"
 else
@@ -72,10 +60,7 @@ else
   sudo env \
     "PATH=${safe_path}" \
     "USER=${USER}" \
-    "HOSTNAME=${HOSTNAME}" \
-    "HOST=${HOST}" \
     "DARWIN_USER=${DARWIN_USER}" \
-    "DARWIN_HOST=${DARWIN_HOST}" \
     "DOTFILES_DIR=${DOTFILES_DIR}" \
     "${nix_bin}" run --impure \
     "path:${repo_dir}#darwinConfigurations.default.config.system.build.darwin-rebuild" \

@@ -91,13 +91,11 @@ fi
 # Optional: Install essential CLI tools in user-space (~/.local/bin) via curl
 if [[ ${install_tools} -eq 1 ]]; then
   echo "==> Checking and installing essential CLI tools on '${target_host}'..."
-  remote_installer=".remote-tools-$$.sh"
+  # Fed on stdin, never scp'd: a predictable remote ~/.remote-tools-$$.sh can be a pre-planted symlink.
   if [[ ${dry_run} -eq 1 ]]; then
-    echo "     [dry-run] scp ${repo_dir}/scripts/lib/remote-tools.sh ${target_host}:~/${remote_installer}"
-    echo "     [dry-run] ssh -T ${target_host} 'bash ~/${remote_installer} </dev/null; rm -f ~/${remote_installer}'"
+    echo "     [dry-run] ssh -T ${target_host} 'bash -s' < ${repo_dir}/scripts/lib/remote-tools.sh"
   else
-    scp -q "${repo_dir}/scripts/lib/remote-tools.sh" "${target_host}:~/${remote_installer}"
-    ssh -T "${target_host}" "bash -c 'trap \"rm -f ~/${remote_installer}\" EXIT HUP INT TERM; bash ~/${remote_installer}' </dev/null"
+    ssh -T "${target_host}" 'bash -s' < "${repo_dir}/scripts/lib/remote-tools.sh"
   fi
 fi
 

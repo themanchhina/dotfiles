@@ -1,13 +1,13 @@
 # macOS dotfiles
 
-This repository is the source of truth for Daman's Apple Silicon Mac setup. It uses Determinate Nix, nix-darwin, Home Manager, and nix-homebrew.
+This repository is the source of truth for Daman's Apple Silicon Mac setup. It uses Determinate Nix, nix-darwin, Home Manager, and nix-homebrew. It also pushes the terminal and editor configuration to remote Linux hosts over SSH, via `scripts/sync-remote.sh`.
 
 ## New machine
 
 The configuration requires:
 
 - an Apple Silicon Mac
-- the macOS account name, hostname, and repository directory (automatically inferred from your environment, or customizable in `flake.nix`)
+- the macOS account name and repository directory (automatically inferred from your environment, or customizable in `flake.nix`)
 
 Clone it into your preferred directory, then run the bootstrap script:
 
@@ -25,14 +25,16 @@ Home Manager backs up conflicting files with the suffix `.before-home-manager`. 
 ## Repository layout
 
 ```text
-flake.nix             inputs, host identity, and module wiring
-darwin.nix            macOS defaults, networking, Homebrew, keyboard mapping
-home.nix              user packages, shell, and managed file destinations
-config/               application, Git, SSH, Neovim, and prompt configuration
-scripts/bootstrap.sh  first activation on a new Mac
-scripts/rebuild.sh    validate and apply the current configuration
-scripts/update.sh     intentionally update Nix inputs and Homebrew packages
-scripts/sync-brew.sh  audit and sync installed Homebrew packages with darwin.nix
+flake.nix              inputs, user identity, and module wiring
+darwin.nix             macOS defaults, networking, Homebrew, keyboard mapping
+home.nix               user packages, shell, and managed file destinations
+config/                application, Git, SSH, Neovim, and prompt configuration
+scripts/bootstrap.sh   first activation on a new Mac
+scripts/rebuild.sh     validate and apply the current configuration
+scripts/update.sh      intentionally update Nix inputs and Homebrew packages
+scripts/sync-brew.sh   audit and sync installed Homebrew packages with darwin.nix
+scripts/sync-remote.sh push terminal and editor config to a remote Linux host
+scripts/lib/           shared shell helpers, and the remote tool installer
 ```
 
 ## Daily changes
@@ -70,6 +72,24 @@ This means:
 - WezTerm configuration hot-reloads live on save.
 - When bootstrapping a new machine, Home Manager creates all required symlinks automatically without manual `ln -s` commands.
 
+## Remote hosts
+
+`scripts/sync-remote.sh` pushes the terminal and editor configuration to a remote Linux box over SSH. It is one-way and overwrites the remote copies.
+
+```sh
+./scripts/sync-remote.sh india                          # sync configs only
+./scripts/sync-remote.sh india --install-tools          # also install CLI tools into ~/.local/bin
+./scripts/sync-remote.sh india --dry-run                # print what would change
+```
+
+It syncs the Herdr, Neovim, Git and Zsh configuration, appends `PATH`, `EDITOR` and `TERM_PROGRAM` to the remote `~/.zshrc` / `~/.bashrc`, and reloads a running Herdr server. `--install-tools` fetches prebuilt binaries by `curl` with no sudo; the Neovim build is GLIBC 2.17 compatible so it runs on older hosts. `--clean` additionally purges the remote Neovim plugin cache.
+
+It also generates `~/.config/git/local.conf` on non-Darwin hosts, which clears the macOS credential helper and applies the personal Git identity unconditionally. That file is owned by this script and is overwritten on every sync.
+
+## Git identity
+
+The personal identity applies only inside `~/code/daman/`, and `user.useConfigOnly` is set. A repository outside those roots has no identity and `git commit` fails rather than silently attributing the commit to the personal address. Add another `includeIf` in `config/git/config` for any other root you work in.
+
 ## Host-specific notes
 
 The DNS list is applied to the network services named in `darwin.nix`. Adapter names vary between Macs and docks. On a new machine, inspect them with:
@@ -80,7 +100,7 @@ networksetup -listallnetworkservices
 
 Then update `networking.knownNetworkServices` before rebuilding if the Ethernet service uses a different name.
 
-The machine and account names are centralized at the top of `flake.nix`. Supporting a second host should start with another `darwinConfigurations` entry rather than duplicating this repository.
+The account name and repository directory are centralized at the top of `flake.nix`. There is a single `darwinConfigurations.default`; supporting a second machine should start with another entry there rather than duplicating this repository.
 
 ## New machine checklist (Day 1)
 

@@ -47,6 +47,17 @@ get_latest_github_tag() {
     | awk -F'/tag/' '/^[Ll]ocation:/ {print $2}' || true
 }
 
+# Assign inside `if` or set -e aborts here; empty output means a 0-byte binary bash ran as an empty script.
+confirm_installed() {
+  local name="$1"; shift
+  local out
+  if out="$("$@" 2>&1)" && [[ -n "${out}" ]]; then
+    echo "     ✓ ${name} installed: ${out%%$'\n'*}"
+  else
+    echo "     ✗ ${name} installed but not runnable: ${out%%$'\n'*}" >&2
+  fi
+}
+
 # 1. Neovim (using glibc-2.17 compatible build from neovim-releases)
 if command -v nvim >/dev/null 2>&1 && nvim --version >/dev/null 2>&1; then
   echo "     ✓ nvim: $(nvim --version | head -n1)"
@@ -63,7 +74,7 @@ else
     curl -fsSL "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-${nvim_arch}.tar.gz" \
       | tar -xz -C "${HOME}/.local" --strip-components=1
   fi
-  echo "     ✓ nvim installed: $("${HOME}/.local/bin/nvim" --version | head -n1)"
+  confirm_installed nvim "${HOME}/.local/bin/nvim" --version
 fi
 
 # 2. Herdr (static-pie linked binary)
@@ -72,7 +83,7 @@ if command -v herdr >/dev/null 2>&1 && herdr --version >/dev/null 2>&1; then
 else
   echo "     -> Installing Herdr..."
   curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR="${HOME}/.local/bin" sh
-  echo "     ✓ herdr installed: $("${HOME}/.local/bin/herdr" --version 2>/dev/null || echo 'installed')"
+  confirm_installed herdr "${HOME}/.local/bin/herdr" --version
 fi
 
 # 3. ripgrep (rg - statically linked musl)
@@ -89,7 +100,7 @@ else
   find "${tmp_dir}" -name rg -type f -exec mv {} "${HOME}/.local/bin/rg" \;
   chmod +x "${HOME}/.local/bin/rg"
   rm -rf "${tmp_dir}"
-  echo "     ✓ rg installed: $("${HOME}/.local/bin/rg" --version | head -n1)"
+  confirm_installed rg "${HOME}/.local/bin/rg" --version
 fi
 
 # 4. fd-find (fd - statically linked musl)
@@ -105,7 +116,7 @@ else
   find "${tmp_dir}" -name fd -type f -exec mv {} "${HOME}/.local/bin/fd" \;
   chmod +x "${HOME}/.local/bin/fd"
   rm -rf "${tmp_dir}"
-  echo "     ✓ fd installed: $("${HOME}/.local/bin/fd" --version | head -n1)"
+  confirm_installed fd "${HOME}/.local/bin/fd" --version
 fi
 
 # 5. lazygit (static Go binary)
@@ -122,7 +133,7 @@ else
   find "${tmp_dir}" -name lazygit -type f -exec mv {} "${HOME}/.local/bin/lazygit" \;
   chmod +x "${HOME}/.local/bin/lazygit"
   rm -rf "${tmp_dir}"
-  echo "     ✓ lazygit installed: $("${HOME}/.local/bin/lazygit" --version | head -n1)"
+  confirm_installed lazygit "${HOME}/.local/bin/lazygit" --version
 fi
 
 # 6. jq (statically linked binary)
@@ -135,7 +146,7 @@ else
   chmod +x "${tmp_dir}/jq"
   mv "${tmp_dir}/jq" "${HOME}/.local/bin/jq"
   rm -rf "${tmp_dir}"
-  echo "     ✓ jq installed: $("${HOME}/.local/bin/jq" --version | head -n1)"
+  confirm_installed jq "${HOME}/.local/bin/jq" --version
 fi
 
 # 7. fzf (static Go binary)
@@ -152,7 +163,7 @@ else
   find "${tmp_dir}" -name fzf -type f -exec mv {} "${HOME}/.local/bin/fzf" \;
   chmod +x "${HOME}/.local/bin/fzf"
   rm -rf "${tmp_dir}"
-  echo "     ✓ fzf installed: $("${HOME}/.local/bin/fzf" --version | head -n1)"
+  confirm_installed fzf "${HOME}/.local/bin/fzf" --version
 fi
 
 # 8. uv (Python package manager & runner)
@@ -161,7 +172,7 @@ if command -v uv >/dev/null 2>&1 && uv --version >/dev/null 2>&1; then
 else
   echo "     -> Installing uv..."
   curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="${HOME}/.local/bin" sh
-  echo "     ✓ uv installed: $("${HOME}/.local/bin/uv" --version 2>/dev/null || echo 'installed')"
+  confirm_installed uv "${HOME}/.local/bin/uv" --version
 fi
 
 # 9. fnm (Fast Node Manager for Mason / LSPs)
@@ -173,7 +184,7 @@ else
   if [[ -x "${HOME}/.local/share/fnm/fnm" && ! -e "${HOME}/.local/bin/fnm" ]]; then
     ln -sf "${HOME}/.local/share/fnm/fnm" "${HOME}/.local/bin/fnm"
   fi
-  echo "     ✓ fnm installed"
+  confirm_installed fnm "${HOME}/.local/share/fnm/fnm" --version
 fi
 
 # 10. tree-sitter CLI (required for Neovim 0.12 parser compilation)
@@ -189,7 +200,7 @@ else
   chmod +x "${tmp_dir}/tree-sitter"
   mv "${tmp_dir}/tree-sitter" "${HOME}/.local/bin/tree-sitter"
   rm -rf "${tmp_dir}"
-  echo "     ✓ tree-sitter installed: $("${HOME}/.local/bin/tree-sitter" --version | head -n1)"
+  confirm_installed tree-sitter "${HOME}/.local/bin/tree-sitter" --version
 fi
 
 echo "     ✅ Remote CLI tools check complete!"

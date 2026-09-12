@@ -7,13 +7,14 @@ source "${repo_dir}/scripts/lib/utils.sh"
 
 echo "==> Validating system requirements..."
 
-if [[ "$(uname -s)" != "Darwin" || "$(uname -m)" != "arm64" ]]; then
+# hw.optional.arm64, not uname -m, which reports x86_64 under Rosetta translation.
+if [[ "$(uname -s)" != "Darwin" || "$(sysctl -n hw.optional.arm64 2>/dev/null)" != "1" ]]; then
   echo "Error: This configuration currently supports Apple Silicon macOS only." >&2
   exit 1
 fi
 
 resolve_system_identity
-echo "==> Bootstrapping for user '${USER}' on host '${HOSTNAME}'..."
+echo "==> Bootstrapping for user '${USER}'..."
 
 # Ensure Xcode Command Line Tools are installed (required for Homebrew and native builds)
 if ! xcode-select -p >/dev/null 2>&1; then
@@ -21,10 +22,16 @@ if ! xcode-select -p >/dev/null 2>&1; then
   trap 'rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress' EXIT INT TERM
   touch /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
   xcode-select --install 2>/dev/null || true
-  echo "Waiting for Xcode Command Line Tools to complete installation..."
-  until xcode-select -p >/dev/null 2>&1; do
+  echo "Waiting for Xcode Command Line Tools to complete installation (30 min max)..."
+  # Bounded: the install dialog is a GUI whose Cancel is indistinguishable from slow.
+  for _ in $(seq 360); do
+    xcode-select -p >/dev/null 2>&1 && break
     sleep 5
   done
+  if ! xcode-select -p >/dev/null 2>&1; then
+    echo "Error: Xcode Command Line Tools still missing. Install them, then re-run." >&2
+    exit 1
+  fi
   rm -f /tmp/.com.apple.dt.CommandLineTools.installondemand.in-progress
   trap - EXIT INT TERM
   echo "==> Xcode Command Line Tools installed."
@@ -40,17 +47,19 @@ if [[ -d "${HOME}/.config/nvim" && ! -L "${HOME}/.config/nvim" ]]; then
   mv "${HOME}/.config/nvim" "${backup_dir}"
 fi
 
-# Clean up broken symlinks across all managed paths to prevent Home Manager collisions
-for link_path in \
-  "${HOME}/.zshrc" "${HOME}/.zprofile" "${HOME}/.antigenrc" \
-  "${HOME}/.ssh/config" "${HOME}/.gitconfig" "${HOME}/.p10k.zsh" "${HOME}/.zsh_aliases" "${HOME}/code/git.conf" \
-  "${HOME}/.config/nvim" "${HOME}/.config/wezterm/wezterm.lua" "${HOME}/.config/herdr/config.toml" \
-  "${HOME}/.config/git/personal.conf" "${HOME}/.config/git/ignore"; do
-  if [[ -L "${link_path}" && ! -e "${link_path}" ]]; then
-    echo "==> Removing stale broken symlink: ${link_path}"
-    rm "${link_path}"
-  fi
-done
+# Discovered, not listed: a hardcoded copy of home.nix's paths drifts out of date.
+while IFS= read -r link_path; do
+  [[ -e "${link_path}" ]] && continue
+  case "$(readlink "${link_path}")" in
+    "${repo_dir}"/*)
+      echo "==> Removing stale broken symlink: ${link_path}"
+      rm "${link_path}"
+      ;;
+  esac
+done < <(
+  find "${HOME}" -maxdepth 1 -type l 2>/dev/null
+  find "${HOME}/.config" "${HOME}/.ssh" -maxdepth 2 -type l 2>/dev/null
+)
 
 # Ensure strict SSH directory and file permissions
 mkdir -p "${HOME}/.ssh" && chmod 700 "${HOME}/.ssh"
@@ -59,8 +68,13 @@ if [[ -f "${repo_dir}/config/ssh/config" ]]; then
 fi
 
 if ! command -v nix >/dev/null 2>&1 && [[ ! -x /nix/var/nix/profiles/default/bin/nix ]]; then
+  if [[ ! -t 0 ]]; then
+    echo "Error: Determinate Nix is not installed and stdin is not a terminal." >&2
+    echo "Install it first: https://install.determinate.systems/nix" >&2
+    exit 1
+  fi
   echo ""
-  read -r -p "Determinate Nix is not installed. Install it now? [y/N] " answer
+  read -r -p "Determinate Nix is not installed. Install it now? [y/N] " answer || answer=""
   if [[ ! "${answer}" =~ ^[Yy]$ ]]; then
     echo "Install Determinate Nix, then run this script again." >&2
     exit 1

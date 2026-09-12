@@ -22,11 +22,10 @@
     }:
     let
       # -----------------------------------------------------------------------
-      # Single spot to explicitly configure username, hostname, or repo path.
+      # Single spot to explicitly configure username or repo path.
       # Leave empty ("") to automatically fall back to the environment.
       # -----------------------------------------------------------------------
       manualUser = "";
-      manualHost = "";
       manualDotfilesDir = "";
       # -----------------------------------------------------------------------
 
@@ -45,26 +44,10 @@
         else
           "";
 
-      envHost =
-        let
-          darwinHost = builtins.getEnv "DARWIN_HOST";
-          hostName = builtins.getEnv "HOSTNAME";
-          host = builtins.getEnv "HOST";
-        in
-        if darwinHost != "" then
-          darwinHost
-        else if hostName != "" then
-          hostName
-        else if host != "" then
-          host
-        else
-          "";
-
       envDotfiles = builtins.getEnv "DOTFILES_DIR";
 
       # Use manual override if set, otherwise fallback to env, otherwise fallback to "default" (for pure CI)
       username = if manualUser != "" then manualUser else if envUser != "" then envUser else "default";
-      hostname = if manualHost != "" then manualHost else if envHost != "" then envHost else "default";
       system = "aarch64-darwin";
       homeDirectory = "/Users/${username}";
       dotfilesDirectory = if manualDotfilesDir != "" then manualDotfilesDir else if envDotfiles != "" then envDotfiles else "${homeDirectory}/code/daman/dotfiles";
@@ -74,7 +57,6 @@
           inherit
             dotfilesDirectory
             homeDirectory
-            hostname
             system
             username
             ;
@@ -106,10 +88,6 @@
       };
     in
     {
-      darwinConfigurations = {
-        default = mkDarwinSystem;
-      } // (if hostname != "" && hostname != "default" then {
-        ${hostname} = mkDarwinSystem;
-      } else {});
+      darwinConfigurations.default = mkDarwinSystem;
     };
 }
