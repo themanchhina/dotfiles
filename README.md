@@ -90,9 +90,9 @@ It also generates `~/.config/git/local.conf` on non-Darwin hosts, which clears t
 
 The personal identity applies only inside `~/code/daman/`, and `user.useConfigOnly` is set. A repository outside those roots has no identity, so rather than silently attributing a commit to the personal address, git refuses.
 
-That refusal is not always graceful. `commit`, `commit --amend`, `merge --no-ff`, `revert` and `tag -a` fail cleanly, but anything that commits mid-operation leaves state behind: `rebase` stops with a detached HEAD and a `.git/rebase-merge` to `git rebase --abort`, and `cherry-pick` leaves `CHERRY_PICK_HEAD`. Because `pull.rebase` is true, a plain `git pull` on a diverged branch hits the rebase path.
+That refusal is not always graceful. `commit`, `commit --amend`, `merge --no-ff` and `tag -a` fail cleanly, but anything that commits mid-operation leaves state behind: `rebase` stops at a detached HEAD with a `.git/rebase-merge`, and `revert` and `cherry-pick` leave a dirty index. Recover with the matching `--abort`. Because `pull.rebase` is true a plain `git pull` on a diverged branch hits the rebase path, and because `rebase.autoStash` is also true it will have stashed your uncommitted work first: `git rebase --abort` restores it, but `--skip` or `--continue` will not, and `git stash list` does not show it.
 
-So set an identity before working in a new root, either per repository with `git config user.email`, or by adding another `includeIf` in `config/git/config`.
+So set an identity before working in a new root. `useConfigOnly` requires **both** values, so per repository that is `git config user.email ...` and `git config user.name ...`; otherwise add another `includeIf` in `config/git/config`.
 
 ## Host-specific notes
 

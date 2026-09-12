@@ -9,7 +9,7 @@ vim.keymap.set("n", "<C-u>", "<C-u>zz", { desc = "Scroll Up and Center" })
 
 -- Terminal-style copy on mouse-select. Note y ends Visual mode, so press gv to
 -- operate on the selection afterwards.
-vim.keymap.set("v", "<LeftRelease>", [["+y<LeftRelease>]], { desc = "Auto-copy mouse selection to clipboard" })
+vim.keymap.set("x", "<LeftRelease>", [["+y<LeftRelease>]], { desc = "Auto-copy mouse selection to clipboard" })
 
 -- Unified split shortcuts matching Herdr's mental model (v for vertical, - for horizontal)
 -- Window navigation inside Neovim uses <C-h/j/k/l>

@@ -57,6 +57,15 @@ run_nvim_headless() {
 restore_nvim_plugins() {
   local clean_mode="${1:-0}"
 
+  # Before the purge: without nvim there is nothing to restore with, so deleting
+  # the plugin tree would just lose it.
+  if ! command -v nvim >/dev/null 2>&1; then
+    if [[ "${clean_mode}" -eq 1 ]]; then
+      echo "    Warning: --clean requested but nvim is not installed; skipping purge." >&2
+    fi
+    return 0
+  fi
+
   if [[ "${clean_mode}" -eq 1 ]]; then
     # Not ~/.local/state/nvim: that is shada and undo, which restore cannot rebuild.
     echo "==> Purging Neovim plugin caches (~/.local/share/nvim/lazy, site, ~/.cache/nvim)..."

@@ -39,12 +39,11 @@ local function copy_with_osc52(reg)
     end)
 
     -- 3. System pasteboard fallback if running in a session where it works.
-    -- Linewise must keep its trailing newline: that is the only signal the paste
-    -- side has, so without it a yanked line comes back charwise.
+    -- No trailing newline is added: for linewise, Neovim already passes a final
+    -- empty element, so `text` ends in one and appending a second doubles it.
     if copy_cmd then
-      local linewise = regtype == "V" or regtype == "l"
       pcall(function()
-        vim.fn.system(copy_cmd, linewise and (text .. "\n") or text)
+        vim.fn.system(copy_cmd, text)
       end)
     end
   end

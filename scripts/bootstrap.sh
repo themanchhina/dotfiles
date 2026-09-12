@@ -5,6 +5,31 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # shellcheck disable=SC1091
 source "${repo_dir}/scripts/lib/utils.sh"
 
+# Validate first: everything below mutates (moves ~/.config/nvim, installs Nix)
+# before rebuild.sh ever sees these arguments.
+for arg in "$@"; do
+  case "${arg}" in
+    --clean|-c) ;;
+    -h|--help)
+      cat << 'EOF'
+Usage: bootstrap.sh [options]
+
+First activation on a new Mac: installs Determinate Nix if absent, then applies
+the configuration via rebuild.sh.
+
+Options:
+  --clean, -c      Purge Neovim plugin cache and reinstall fresh from lockfile
+  -h, --help       Show this help message
+EOF
+      exit 0
+      ;;
+    *)
+      echo "Error: unknown option '${arg}'. See --help." >&2
+      exit 1
+      ;;
+  esac
+done
+
 echo "==> Validating system requirements..."
 
 # hw.optional.arm64, not uname -m, which reports x86_64 under Rosetta translation.

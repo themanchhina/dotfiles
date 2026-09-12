@@ -16,7 +16,9 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Determinate Nix
-        uses: DeterminateSystems/nix-installer-action@v16
+        uses: DeterminateSystems/nix-installer-action@v23
+        with:
+          determinate: true
 
       - name: Check flake evaluation
         run: nix flake check --impure "path:." --no-build
@@ -26,8 +28,8 @@ jobs:
         run: nix eval --impure --raw "path:.#darwinConfigurations.default.config.system.build.toplevel.drvPath"
 
       - name: Validate shell scripts syntax
-        run: bash -n scripts/*.sh scripts/lib/*.sh
+        run: for f in scripts/*.sh scripts/lib/*.sh; do bash -n "$f"; done
 
       # The macOS runner images ship no shellcheck; nix is already installed above.
       - name: Lint shell scripts
-        run: nix run nixpkgs#shellcheck -- --severity=warning scripts/*.sh scripts/lib/*.sh
+        run: nix run nixpkgs/nixos-26.05#shellcheck -- --severity=warning scripts/*.sh scripts/lib/*.sh

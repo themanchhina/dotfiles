@@ -29,26 +29,29 @@ local function setup_scrollback_buffer(bufnr)
     end
   end
 
-  if not rendered then
-    -- Fast native Lua fallback: strip raw ANSI escape codes and carriage returns
-    local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
-    local modified = false
-    for i, line in ipairs(lines) do
-      local clean = line
+  -- Always strip what baleia leaves behind: it only consumes SGR/CSI, so carriage
+  -- returns and OSC/DCS strings survive into the buffer it renders.
+  local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+  local modified = false
+  for i, line in ipairs(lines) do
+    local clean = line
+      :gsub("\27%][^\7\27]*\7", "") -- OSC, BEL-terminated
+      :gsub("\27%][^\7\27]*\27\\", "") -- OSC, ST-terminated (ESC + backslash, both bytes)
+      :gsub("\27[P_%^X][^\27]*\27\\", "") -- DCS / APC / SOS / PM strings
+      :gsub("\r", "")
+    if not rendered then
+      -- No baleia: also drop the colour sequences it would have consumed.
+      clean = clean
         :gsub("\27%[[0-9:;<=>?]*[ -/]*[@-~]", "") -- CSI, incl. colon subparams and private introducers
-        :gsub("\27%][^\7\27]*\7", "") -- OSC, BEL-terminated
-        :gsub("\27%][^\7\27]*\27\\", "") -- OSC, ST-terminated (ESC + backslash, both bytes)
-        :gsub("\27[P_%^X][^\27]*\27\\", "") -- DCS / APC / SOS / PM strings
-        :gsub("\r", "")
         :gsub("\27", "") -- lone escapes left by truncated sequences
-      if clean ~= line then
-        lines[i] = clean
-        modified = true
-      end
     end
-    if modified then
-      vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
+    if clean ~= line then
+      lines[i] = clean
+      modified = true
     end
+  end
+  if modified then
+    vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
   end
 
   -- Buffer ergonomics for read-only inspection (only after rendering completes)
@@ -74,7 +77,7 @@ local function setup_scrollback_buffer(bufnr)
   end
 
   -- Instant exit with 'q'
-  vim.keymap.set("n", "q", "<cmd>quit!<cr>", {
+  vim.keymap.set("n", "q", "<cmd>close!<cr>", {
     buffer = bufnr,
     silent = true,
     nowait = true,

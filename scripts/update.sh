@@ -5,13 +5,27 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # shellcheck disable=SC1091
 source "${repo_dir}/scripts/lib/utils.sh"
 
-# Validate before mutating anything: these are forwarded to rebuild.sh, which
-# rejects unknown options, and by then brew and flake.lock have already moved.
+# Validate before mutating anything: these are forwarded to rebuild.sh, and by
+# the time it rejects an option brew and flake.lock have already moved. --help
+# must exit here too, or rebuild.sh prints help and skips the switch while this
+# script still upgrades everything and reports success.
 for arg in "$@"; do
   case "${arg}" in
-    --clean|-c|-h|--help) ;;
+    --clean|-c) ;;
+    -h|--help)
+      cat << 'EOF'
+Usage: update.sh [options]
+
+Updates Nix flake inputs and Homebrew packages, then applies the configuration.
+
+Options:
+  --clean, -c      Purge Neovim plugin cache and reinstall fresh from lockfile
+  -h, --help       Show this help message
+EOF
+      exit 0
+      ;;
     *)
-      echo "Error: unknown option '${arg}'. See rebuild.sh --help." >&2
+      echo "Error: unknown option '${arg}'. See --help." >&2
       exit 1
       ;;
   esac

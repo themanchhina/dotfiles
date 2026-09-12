@@ -21,9 +21,9 @@ nix_bin="$(find_nix_bin "${repo_dir}")"
 
 # Get installed top-level formulae, all formulae, casks, and taps.
 # `leaves` prints full names and `list` short ones, so strip the tap from both.
-installed_leaves="$("${brew_bin}" leaves 2>/dev/null | sed 's|.*/||' | sort)"
-all_installed_brews="$("${brew_bin}" list --formula 2>/dev/null | sort)"
-installed_casks="$("${brew_bin}" list --cask 2>/dev/null | sort)"
+installed_leaves="$("${brew_bin}" leaves 2>/dev/null | sed 's|.*/||' | sort || true)"
+all_installed_brews="$("${brew_bin}" list --formula 2>/dev/null | sort || true)"
+installed_casks="$("${brew_bin}" list --cask 2>/dev/null | sort || true)"
 # homebrew/* are Homebrew's own and are never declared, so they are not drift.
 installed_taps="$("${brew_bin}" tap 2>/dev/null | grep -v '^homebrew/' | sort || true)"
 
