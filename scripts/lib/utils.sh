@@ -45,17 +45,19 @@ resolve_system_identity() {
   export DARWIN_HOST="${resolved_host}"
 }
 
-# Nix flakes in a Git repo only see tracked files.
-# Automatically stage untracked files with intent-to-add (-N).
-stage_untracked_for_nix() {
-  local dir="${1:-.}"
-  if git -C "${dir}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    local untracked
-    untracked="$(git -C "${dir}" ls-files --others --exclude-standard)"
-    if [[ -n "${untracked}" ]]; then
-      echo "==> Staging untracked files with intent-to-add (git add -N) for Nix..."
-      git -C "${dir}" add -N .
-    fi
+# Warns but never fails: a plugin problem must not abort a good system switch.
+run_nvim_headless() {
+  local label="$1"
+  local cmd="$2"
+  local log="${TMPDIR:-/tmp}/dotfiles-nvim.log"
+
+  if ! command -v nvim >/dev/null 2>&1; then
+    return 0
+  fi
+
+  echo "==> ${label}"
+  if ! nvim --headless "${cmd}" "+qa" >"${log}" 2>&1; then
+    echo "    Warning: nvim ${cmd} exited non-zero. Log: ${log}" >&2
   fi
 }
 
@@ -63,25 +65,16 @@ stage_untracked_for_nix() {
 restore_nvim_plugins() {
   local clean_mode="${1:-0}"
 
-  if ! command -v nvim >/dev/null 2>&1; then
-    return 0
-  fi
-
   if [[ "${clean_mode}" -eq 1 ]]; then
-    echo "==> Purging Neovim plugin caches (~/.local/share/nvim/lazy, site, cache, state)..."
-    rm -rf "${HOME}/.local/share/nvim/lazy" "${HOME}/.local/share/nvim/site" "${HOME}/.cache/nvim" "${HOME}/.local/state/nvim"
+    # Not ~/.local/state/nvim: that is shada and undo, which restore cannot rebuild.
+    echo "==> Purging Neovim plugin caches (~/.local/share/nvim/lazy, site, ~/.cache/nvim)..."
+    rm -rf "${HOME}/.local/share/nvim/lazy" "${HOME}/.local/share/nvim/site" "${HOME}/.cache/nvim"
   fi
 
-  echo "==> Restoring Neovim plugins and treesitter parsers..."
-  nvim --headless "+Lazy! restore" "+qa" >/dev/null 2>&1 || true
+  run_nvim_headless "Restoring Neovim plugins and treesitter parsers..." "+Lazy! restore"
 }
 
 # Sync and update Neovim plugins headlessly
 sync_nvim_plugins() {
-  if ! command -v nvim >/dev/null 2>&1; then
-    return 0
-  fi
-
-  echo "==> Syncing Neovim plugins and treesitter..."
-  nvim --headless "+Lazy! sync" "+qa" >/dev/null 2>&1 || true
+  run_nvim_headless "Syncing Neovim plugins and treesitter..." "+Lazy! sync"
 }

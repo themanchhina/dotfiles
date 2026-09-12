@@ -1,7 +1,10 @@
-[include]
+# Scoped, not global: outside these roots useConfigOnly fails the commit instead.
+[includeIf "gitdir:~/code/daman/"]
   path = ~/.config/git/personal.conf
 [includeIf "gitdir:~/code/daman/mldo-app/"]
   path = ~/code/daman/mldo-app/git.conf
+[user]
+  useConfigOnly = true
 [init]
   defaultBranch = main
 [push]
@@ -15,6 +18,10 @@
   helper = osxkeychain
 [core]
   excludesFile = ~/.config/git/ignore
+
+# Last so it wins. Written by sync-remote.sh on Linux hosts; absence is fine.
+[include]
+  path = ~/.config/git/local.conf
 
 [alias]
   # Worktree operations
@@ -33,4 +40,5 @@
   cp = cherry-pick
   df = diff
   lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
-  prune-merged = "!sh -c 'branches=$(git branch --merged | grep -vE \"^\\*|master|main\"); if [ -n \"$branches\" ]; then echo \"$branches\" | xargs -n 1 git branch -d; else echo \"No merged branches to prune.\"; fi'"
+  # Must name a base: bare `--merged` means merged-into-HEAD, which eats develop.
+  prune-merged = "!sh -c 'detected=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed \"s@^origin/@@\"); base=\"\"; for c in \"$detected\" main master; do if [ -n \"$c\" ] && git rev-parse --verify --quiet \"refs/heads/$c\" >/dev/null; then base=\"$c\"; break; fi; done; if [ -z \"$base\" ]; then echo \"prune-merged: no local main or master branch found\" >&2; exit 1; fi; cur=$(git branch --show-current); branches=$(git branch --merged \"$base\" --format=\"%(refname:short)\" | grep -vxE \"$base|main|master|$cur\"); if [ -n \"$branches\" ]; then echo \"$branches\" | xargs -n 1 git branch -d; else echo \"No branches merged into $base to prune.\"; fi'"

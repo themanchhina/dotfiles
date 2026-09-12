@@ -10,6 +10,15 @@ vim.opt.scrolloff = 16
 local clip_cache = { ["+"] = {}, ["*"] = {} }
 local osc52 = require("vim.ui.clipboard.osc52")
 
+-- Per-OS: this tree is synced to Linux remotes, which have no pbcopy/pbpaste.
+local function first_executable(candidates)
+  for _, cmd in ipairs(candidates) do
+    if vim.fn.executable(cmd[1]) == 1 then return cmd end
+  end
+end
+local copy_cmd = first_executable({ { "pbcopy" }, { "wl-copy" }, { "xclip", "-selection", "clipboard" }, { "xsel", "-bi" } })
+local paste_cmd = first_executable({ { "pbpaste" }, { "wl-paste" }, { "xclip", "-selection", "clipboard", "-o" }, { "xsel", "-b" } })
+
 local function copy_with_osc52(reg)
   local osc52_copy = osc52.copy(reg)
   local clip_id = reg == "+" and "c" or "p"
@@ -28,18 +37,24 @@ local function copy_with_osc52(reg)
       io.stdout:flush()
     end)
 
-    -- 3. System pbcopy fallback if running in a session where pbcopy works
-    pcall(function()
-      vim.fn.system({ "pbcopy" }, text)
-    end)
+    -- 3. System pasteboard fallback if running in a session where it works
+    if copy_cmd then
+      pcall(function()
+        vim.fn.system(copy_cmd, text)
+      end)
+    end
   end
 end
 
 local function paste_clipboard(reg)
   return function()
-    local ok, out = pcall(vim.fn.systemlist, { "pbpaste" })
-    if ok and vim.v.shell_error == 0 and type(out) == "table" and #out > 0 then
-      return { out, "l" }
+    -- Not systemlist: the trailing newline is the only linewise/charwise signal.
+    if paste_cmd then
+      local ok, out = pcall(vim.fn.system, paste_cmd)
+      if ok and vim.v.shell_error == 0 and type(out) == "string" and out ~= "" then
+        local regtype = out:sub(-1) == "\n" and "l" or "v"
+        return { vim.split((out:gsub("\n$", "")), "\n"), regtype }
+      end
     end
     if clip_cache[reg] and clip_cache[reg].lines and #clip_cache[reg].lines > 0 then
       return { clip_cache[reg].lines, clip_cache[reg].regtype or "l" }

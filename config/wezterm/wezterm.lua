@@ -26,23 +26,31 @@ config.window_padding = {
 config.default_cursor_style = "BlinkingBlock"
 config.cursor_blink_rate = 500
 
--- Browser & Link Opening
--- Shift+Click opens links in default browser (local and remote).
--- Shift+Drag bypasses Herdr/remote sessions for native WezTerm selection.
+-- Shift+Drag bypasses remote mouse reporting for native WezTerm selection.
 config.bypass_mouse_reporting_modifiers = "SHIFT"
 
+-- Unsent outside Herdr, where \x02D would delete to end of line in Neovim.
+local herdr_hosts = {
+  herdr = true,
+  ssh = true,
+  mosh = true,
+  ["mosh-client"] = true,
+}
+
+local function herdr(suffix)
+  return wezterm.action_callback(function(window, pane)
+    local proc = pane:get_foreground_process_name() or ""
+    local name = proc:match("([^/]+)$") or proc
+    if herdr_hosts[name] then
+      window:perform_action(act.SendString("\x02" .. suffix), pane)
+    else
+      window:toast_notification("WezTerm", "Not a Herdr session -- shortcut ignored", nil, 2000)
+    end
+  end)
+end
+
 config.keys = {
-  -- Word hopping: Option + j (backward word) and Option + k (forward word)
-  {
-    key = "j",
-    mods = "OPT",
-    action = act.SendString("\x1bb"),
-  },
-  {
-    key = "k",
-    mods = "OPT",
-    action = act.SendString("\x1bf"),
-  },
+  -- Option+j/k stays unbound: LazyVim needs <A-j>/<A-k> for move-line.
   -- Standard Option + Left/Right arrows for word hopping
   {
     key = "LeftArrow",
@@ -54,7 +62,7 @@ config.keys = {
     mods = "OPT",
     action = act.SendString("\x1bf"),
   },
-  -- Cmd + k to clear scrollback and viewport
+  -- Cmd + k clears WezTerm's scrollback, not Herdr's; Herdr exposes no clear action.
   {
     key = "k",
     mods = "CMD",
@@ -79,7 +87,7 @@ config.keys = {
   {
     key = "v",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02\x16"),
+    action = herdr("\x16"),
   },
   -- Shift + Enter for newline across all harnesses (Claude, Codex, Agy)
   -- Sends Esc + Enter (\x1b\r), universally parsed as Alt/Option+Enter (newline without submit)
@@ -96,102 +104,102 @@ config.keys = {
   {
     key = "j",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02j"),
+    action = herdr("j"),
   },
   {
     key = "k",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02k"),
+    action = herdr("k"),
   },
 
   -- Pane Splits (d = vertical split, s = horizontal split)
   {
     key = "d",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02v"),
+    action = herdr("v"),
   },
   {
     key = "s",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02-"),
+    action = herdr("-"),
   },
 
   -- Zoom focused pane (z = toggle full-screen)
   {
     key = "z",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02z"),
+    action = herdr("z"),
   },
 
   -- Tab Navigation: adjacent pair (u = previous tab, i = next tab, t = new tab)
   {
     key = "u",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02p"),
+    action = herdr("p"),
   },
   {
     key = "i",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02n"),
+    action = herdr("n"),
   },
   {
     key = "t",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02c"),
+    action = herdr("c"),
   },
 
   -- Close Pane (w = close)
   {
     key = "w",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02x"),
+    action = herdr("x"),
   },
 
   -- AI Agent Navigation: adjacent pair (p = previous agent, n = next agent)
   {
     key = "p",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02A"),
+    action = herdr("A"),
   },
   {
     key = "n",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02a"),
+    action = herdr("a"),
   },
 
   -- Sidebar toggle (b = toggle sidebar)
   {
     key = "b",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02b"),
+    action = herdr("b"),
   },
 
   -- Open scrollback in Neovim (e = edit scrollback)
   {
     key = "e",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02e"),
+    action = herdr("e"),
   },
 
   -- Quick Goto / Jump Palette (o = goto anything)
   {
     key = "o",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02g"),
+    action = herdr("g"),
   },
 
   -- New Git Worktree (g = new worktree + workspace)
   {
     key = "g",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02G"),
+    action = herdr("G"),
   },
 
   -- Lazygit floating modal popup (l = lazygit popup)
   {
     key = "l",
     mods = "CMD|SHIFT",
-    action = act.SendString("\x02l"),
+    action = herdr("l"),
   },
 
   -- --------------------------------------------------------------------------
@@ -201,54 +209,54 @@ config.keys = {
   {
     key = "o",
     mods = "CMD|OPT",
-    action = act.SendString("\x02w"),
+    action = herdr("w"),
   },
   -- New Workspace (Cmd + Option + N)
   {
     key = "n",
     mods = "CMD|OPT",
-    action = act.SendString("\x02N"),
+    action = herdr("N"),
   },
   -- Close Workspace (Cmd + Option + D)
   {
     key = "d",
     mods = "CMD|OPT",
-    action = act.SendString("\x02D"),
+    action = herdr("D"),
   },
   -- Open Existing Worktree (Cmd + Option + G)
   {
     key = "g",
     mods = "CMD|OPT",
-    action = act.SendString("\x02\x1bg"),
+    action = herdr("\x1bg"),
   },
   -- Close Tab (Cmd + Option + X)
   {
     key = "x",
     mods = "CMD|OPT",
-    action = act.SendString("\x02X"),
+    action = herdr("X"),
   },
   -- Rename Pane / Agent (Cmd + Option + P or Cmd + Option + R)
   {
     key = "p",
     mods = "CMD|OPT",
-    action = act.SendString("\x02P"),
+    action = herdr("P"),
   },
   {
     key = "r",
     mods = "CMD|OPT",
-    action = act.SendString("\x02R"),
+    action = herdr("R"),
   },
   -- Rename Tab (Cmd + Option + T)
   {
     key = "t",
     mods = "CMD|OPT",
-    action = act.SendString("\x02T"),
+    action = herdr("T"),
   },
   -- Rename Workspace (Cmd + Option + W)
   {
     key = "w",
     mods = "CMD|OPT",
-    action = act.SendString("\x02W"),
+    action = herdr("W"),
   },
 }
 

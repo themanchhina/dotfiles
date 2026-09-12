@@ -7,12 +7,11 @@ source "${repo_dir}/scripts/lib/utils.sh"
 
 source_nix_env
 nix_bin="$(find_nix_bin "${repo_dir}")"
+brew_bin="$(command -v brew || echo "/opt/homebrew/bin/brew")"
 
-stage_untracked_for_nix "${repo_dir}"
-
-if [[ -x /opt/homebrew/bin/brew ]]; then
+if [[ -x "${brew_bin}" ]]; then
   echo "==> Updating Homebrew formula and cask indexes..."
-  /opt/homebrew/bin/brew update
+  "${brew_bin}" update
 fi
 
 echo "==> Updating Nix flake inputs..."
@@ -21,9 +20,9 @@ echo "==> Updating Nix flake inputs..."
 echo "==> Rebuilding system..."
 "${repo_dir}/scripts/rebuild.sh" "$@"
 
-if [[ -x /opt/homebrew/bin/brew ]]; then
+if [[ -x "${brew_bin}" ]]; then
   echo "==> Upgrading Homebrew packages..."
-  /opt/homebrew/bin/brew upgrade
+  "${brew_bin}" upgrade
 fi
 
 sync_nvim_plugins

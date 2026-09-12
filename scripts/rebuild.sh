@@ -24,10 +24,16 @@ Options:
 EOF
       exit 0
       ;;
+    -*)
+      echo "Error: unknown option '$1'. See --help." >&2
+      exit 1
+      ;;
     *)
-      if [[ -z "${target_host}" ]]; then
-        target_host="$1"
+      if [[ -n "${target_host}" ]]; then
+        echo "Error: unexpected argument '$1' (host already set to '${target_host}')." >&2
+        exit 1
       fi
+      target_host="$1"
       shift
       ;;
   esac
@@ -41,13 +47,14 @@ flake="path:${repo_dir}#default"
 source_nix_env
 nix_bin="$(find_nix_bin "${repo_dir}")"
 
-stage_untracked_for_nix "${repo_dir}"
-
+# flake check skips darwinConfigurations; only an eval catches module errors.
 echo "==> Checking flake configuration for user '${USER}' on host '${HOSTNAME}'..."
-"${nix_bin}" flake check --impure "path:${repo_dir}" --no-build
+"${nix_bin}" eval --impure --raw \
+  "path:${repo_dir}#darwinConfigurations.default.config.system.build.toplevel.drvPath" \
+  >/dev/null
 
-# Build safe PATH for sudo activation
-safe_path="${PATH}:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin:/opt/homebrew/bin"
+# Fixed, not inherited: activation runs as root and ~/.local/bin is user-writable.
+safe_path="/run/current-system/sw/bin:/nix/var/nix/profiles/default/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 
 if [[ -x /run/current-system/sw/bin/darwin-rebuild ]]; then
   echo "==> Applying configuration via installed darwin-rebuild..."

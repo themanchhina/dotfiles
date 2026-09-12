@@ -5,8 +5,6 @@
 -- with `vim.api.nvim_create_autocmd`
 
 -- Herdr & Terminal Scrollback Viewer
--- Triggered when opening temporary scrollback files dumped by Herdr (Cmd+Shift+E)
--- or any file matching *herdr-scrollback*.txt or *scrollback*.log
 local function setup_scrollback_buffer(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   if not vim.api.nvim_buf_is_valid(bufnr) then return end
@@ -36,7 +34,13 @@ local function setup_scrollback_buffer(bufnr)
     local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
     local modified = false
     for i, line in ipairs(lines) do
-      local clean = line:gsub("\27%[[0-9;?]*[a-zA-Z]", ""):gsub("\27%][^\7\27]*[\7\27\\]", ""):gsub("\r", "")
+      local clean = line
+        :gsub("\27%[[0-9:;<=>?]*[ -/]*[@-~]", "") -- CSI, incl. colon subparams and private introducers
+        :gsub("\27%][^\7\27]*\7", "") -- OSC, BEL-terminated
+        :gsub("\27%][^\7\27]*\27\\", "") -- OSC, ST-terminated (ESC + backslash, both bytes)
+        :gsub("\27[P_%^X][^\27]*\27\\", "") -- DCS / APC / SOS / PM strings
+        :gsub("\r", "")
+        :gsub("\27", "") -- lone escapes left by truncated sequences
       if clean ~= line then
         lines[i] = clean
         modified = true
@@ -80,10 +84,20 @@ end
 
 local scrollback_group = vim.api.nvim_create_augroup("HerdrScrollback", { clear = true })
 
-vim.api.nvim_create_autocmd({ "BufReadPost", "BufEnter" }, {
+-- The conversion is one-way, so restrict it to Herdr's own temp dump.
+local function in_tmpdir(path)
+  path = vim.fn.fnamemodify(path, ":p")
+  for _, dir in ipairs({ vim.env.TMPDIR or "/tmp", "/tmp" }) do
+    if vim.startswith(path, vim.fs.normalize(dir) .. "/") then return true end
+  end
+  return false
+end
+
+vim.api.nvim_create_autocmd("BufReadPost", {
   group = scrollback_group,
-  pattern = { "*herdr-scrollback*.txt", "*herdr-scrollback*", "*scrollback*.log" },
+  pattern = "*herdr-scrollback-*.txt",
   callback = function(ev)
+    if not in_tmpdir(vim.api.nvim_buf_get_name(ev.buf)) then return end
     -- Run on next tick to ensure buffer is fully loaded
     vim.schedule(function()
       if vim.api.nvim_buf_is_valid(ev.buf) then
@@ -95,5 +109,8 @@ vim.api.nvim_create_autocmd({ "BufReadPost", "BufEnter" }, {
 
 -- User command to manually apply scrollback formatting to current buffer
 vim.api.nvim_create_user_command("ScrollbackMode", function()
+  if vim.bo.modified then
+    return vim.notify("ScrollbackMode: buffer has unsaved changes", vim.log.levels.WARN)
+  end
   setup_scrollback_buffer()
 end, { desc = "Format current buffer as a terminal scrollback viewer" })

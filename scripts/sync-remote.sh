@@ -10,9 +10,12 @@ Usage: $(basename "$0") <ssh-host> [options]
 Syncs essential configuration files to a remote machine over SSH:
   - Herdr: ~/.config/herdr/config.toml (theme, status symbols, 10MB scrollback, terminal notifications)
   - Neovim: ~/.config/nvim/ (init.lua, lazy-lock.json, plugins, keymaps)
-  - Git: ~/.gitconfig, ~/.config/git/{ignore,personal.conf}
-  - Zsh: ~/.zsh_aliases (agent shortcuts gi/co/cc, git worktree helpers)
-  - Shell: sets PATH (~/.local/bin), TERM_PROGRAM=WezTerm & sources aliases in remote ~/.zshrc / ~/.bashrc
+  - Git: ~/.gitconfig, ~/.config/git/{ignore,personal.conf}, and a generated
+         ~/.config/git/local.conf (owned by this script: clears the macOS
+         credential helper and applies the personal identity unconditionally)
+  - Zsh: ~/.zsh_aliases (agent shortcuts gi/co/cc, docker wrappers, editor aliases)
+  - Shell: sets PATH (~/.local/bin), EDITOR=nvim, TERM_PROGRAM=WezTerm & sources
+           aliases in remote ~/.zshrc / ~/.bashrc
   - Herdr Server: automatically reloads herdr server config on the remote machine
 
 Arguments:
@@ -60,7 +63,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     -h|--help)
-      usage
+      usage 0
       ;;
     *)
       echo "Unknown option: $1" >&2
@@ -80,8 +83,8 @@ fi
 echo "==> Preparing remote directories on '${target_host}'..."
 if [[ ${dry_run} -eq 0 ]]; then
   ssh -T "${target_host}" '
-    rm -rf ~/.oh-my-bash/log/update.lock 2>/dev/null || true
-    mkdir -p ~/.config/herdr ~/.config/git ~/.config/nvim ~/.ssh ~/.local/bin ~/.local/share
+    rm -f ~/.oh-my-bash/log/update.lock 2>/dev/null || true
+    mkdir -p ~/.config/herdr ~/.config/git ~/.config/nvim ~/.local/bin ~/.local/share
   ' </dev/null
 fi
 
@@ -94,7 +97,7 @@ if [[ ${install_tools} -eq 1 ]]; then
     echo "     [dry-run] ssh -T ${target_host} 'bash ~/${remote_installer} </dev/null; rm -f ~/${remote_installer}'"
   else
     scp -q "${repo_dir}/scripts/lib/remote-tools.sh" "${target_host}:~/${remote_installer}"
-    ssh -T "${target_host}" "bash -c 'trap \"rm -f ~/${remote_installer}\" EXIT INT TERM; bash ~/${remote_installer}' </dev/null"
+    ssh -T "${target_host}" "bash -c 'trap \"rm -f ~/${remote_installer}\" EXIT HUP INT TERM; bash ~/${remote_installer}' </dev/null"
   fi
 fi
 
@@ -111,9 +114,12 @@ fi
 # 2. Neovim config
 echo "  -> Neovim: config/nvim/"
 if [[ ${dry_run} -eq 1 ]]; then
-  echo "     [dry-run] scp -r ${repo_dir}/config/nvim ${target_host}:~/.config/nvim.tmp && mv ~/.config/nvim.tmp ~/.config/nvim"
+  echo "     [dry-run] remote: rm -rf ~/.config/nvim.tmp"
+  echo "     [dry-run] scp -r ${repo_dir}/config/nvim ${target_host}:~/.config/nvim.tmp"
+  echo "     [dry-run] remote: rm -rf ~/.config/nvim   <-- DELETES the remote config, no backup"
+  echo "     [dry-run] remote: mv ~/.config/nvim.tmp ~/.config/nvim"
   if [[ ${clean} -eq 1 ]]; then
-    echo "     [dry-run] remote: rm -rf ~/.local/share/nvim/lazy ~/.local/share/nvim/site ~/.cache/nvim ~/.local/state/nvim"
+    echo "     [dry-run] remote: rm -rf ~/.local/share/nvim/lazy ~/.local/share/nvim/site ~/.cache/nvim"
   fi
   echo "     [dry-run] remote: nvim --headless '+Lazy! restore' '+qa'"
 else
@@ -126,12 +132,16 @@ else
     export PATH="${HOME}/.local/bin:${PATH}"
     clean_mode="$1"
     if [[ "${clean_mode}" == "1" ]]; then
-      echo "     ==> Purging remote plugin caches (~/.local/share/nvim/lazy, site, cache)..."
-      rm -rf ~/.local/share/nvim/lazy ~/.local/share/nvim/site ~/.cache/nvim ~/.local/state/nvim
+      # Not ~/.local/state/nvim: that is shada and undo, which restore cannot rebuild.
+      echo "     ==> Purging remote plugin caches (~/.local/share/nvim/lazy, site, ~/.cache/nvim)..."
+      rm -rf ~/.local/share/nvim/lazy ~/.local/share/nvim/site ~/.cache/nvim
     fi
     if command -v nvim >/dev/null 2>&1; then
       echo "     ==> Restoring Neovim plugins headlessly to match lockfile..."
-      nvim --headless "+Lazy! restore" "+qa" </dev/null >/dev/null 2>&1 || true
+      log="${TMPDIR:-/tmp}/dotfiles-nvim.log"
+      if ! nvim --headless "+Lazy! restore" "+qa" </dev/null >"${log}" 2>&1; then
+        echo "     Warning: remote nvim +Lazy! restore exited non-zero. Log on remote: ${log}" >&2
+      fi
     fi
 REMOTE_NVIM_SYNC
 fi
@@ -139,11 +149,23 @@ fi
 # 3. Git configs
 echo "  -> Git: .gitconfig, personal.conf, ignore"
 if [[ ${dry_run} -eq 1 ]]; then
-  echo "     [dry-run] scp git configs"
+  echo "     [dry-run] scp config/git/config      -> ${target_host}:~/.gitconfig  (overwrites)"
+  echo "     [dry-run] scp config/git/personal.conf -> ${target_host}:~/.config/git/personal.conf"
+  echo "     [dry-run] scp config/git/ignore      -> ${target_host}:~/.config/git/ignore"
+  echo "     [dry-run] generate                     ${target_host}:~/.config/git/local.conf (overwrites)"
 else
   scp -q "${repo_dir}/config/git/config" "${target_host}:~/.gitconfig"
   scp -q "${repo_dir}/config/git/personal.conf" "${target_host}:~/.config/git/personal.conf"
   scp -q "${repo_dir}/config/git/ignore" "${target_host}:~/.config/git/ignore"
+
+  # Empty `helper =` drops osxkeychain; the gitdir scoping keys off a Mac-only path.
+  ssh -T "${target_host}" '
+    mkdir -p ~/.config/git
+    if [ "$(uname -s)" != "Darwin" ]; then
+      printf "[credential]\n\thelper =\n[include]\n\tpath = ~/.config/git/personal.conf\n" \
+        > ~/.config/git/local.conf
+    fi
+  ' </dev/null
 fi
 
 # 4. Zsh aliases
@@ -157,34 +179,34 @@ fi
 # 5. Remote shell hooks (PATH, TERM_PROGRAM & aliases sourcing)
 echo "  -> Ensuring remote shell environment (PATH, TERM_PROGRAM=WezTerm & alias sourcing)..."
 if [[ ${dry_run} -eq 1 ]]; then
-  echo "     [dry-run] add ~/.local/bin to PATH, TERM_PROGRAM, and zsh_aliases sourcing to remote shell profiles"
+  echo "     [dry-run] append PATH (~/.local/bin, ~/.local/share/fnm), EDITOR=nvim, TERM_PROGRAM=WezTerm and zsh_aliases sourcing to remote ~/.zshrc / ~/.bashrc"
 else
   ssh -T "${target_host}" 'bash -s' << 'REMOTE_SCRIPT'
-    # For zsh:
+    # Marker must be unique to the line written; '.local/bin' matched foreign exports.
+    ensure_line() {
+      local rc="$1" marker="$2" block="$3"
+      grep -qF "${marker}" "${rc}" 2>/dev/null || printf '%b' "${block}" >> "${rc}"
+    }
+
+    setup_rc() {
+      local rc="$1"
+      ensure_line "${rc}" '$HOME/.local/share/fnm' \
+        '\n# User local binaries\nexport PATH="$HOME/.local/bin:$HOME/.local/share/fnm:$PATH"\n'
+      # herdr's edit_scrollback execs $EDITOR; unset, it falls back to vi.
+      ensure_line "${rc}" 'EDITOR:-nvim' \
+        '\n# Editor for Herdr scrollback and git\nexport EDITOR="${EDITOR:-nvim}"\nexport VISUAL="${VISUAL:-$EDITOR}"\n'
+      ensure_line "${rc}" 'TERM_PROGRAM:-WezTerm' \
+        '\n# Ensure terminal identity for Herdr notifications\nexport TERM_PROGRAM="${TERM_PROGRAM:-WezTerm}"\n'
+      ensure_line "${rc}" '~/.zsh_aliases' \
+        '[[ -f ~/.zsh_aliases ]] && source ~/.zsh_aliases\n'
+    }
+
     if [[ -f ~/.zshrc || ! -f ~/.bashrc ]]; then
       touch ~/.zshrc
-      if ! grep -q '\.local/bin' ~/.zshrc 2>/dev/null; then
-        printf '\n# User local binaries\nexport PATH="$HOME/.local/bin:$HOME/.local/share/fnm:$PATH"\n' >> ~/.zshrc
-      fi
-      if ! grep -q 'TERM_PROGRAM.*WezTerm' ~/.zshrc 2>/dev/null; then
-        printf '\n# Ensure terminal identity for Herdr notifications\nexport TERM_PROGRAM="${TERM_PROGRAM:-WezTerm}"\n' >> ~/.zshrc
-      fi
-      if ! grep -q 'zsh_aliases' ~/.zshrc 2>/dev/null; then
-        printf '[[ -f ~/.zsh_aliases ]] && source ~/.zsh_aliases\n' >> ~/.zshrc
-      fi
+      setup_rc ~/.zshrc
     fi
-
-    # For bash:
     if [[ -f ~/.bashrc ]]; then
-      if ! grep -q '\.local/bin' ~/.bashrc 2>/dev/null; then
-        printf '\n# User local binaries\nexport PATH="$HOME/.local/bin:$HOME/.local/share/fnm:$PATH"\n' >> ~/.bashrc
-      fi
-      if ! grep -q 'TERM_PROGRAM.*WezTerm' ~/.bashrc 2>/dev/null; then
-        printf '\n# Ensure terminal identity for Herdr notifications\nexport TERM_PROGRAM="${TERM_PROGRAM:-WezTerm}"\n' >> ~/.bashrc
-      fi
-      if ! grep -q 'zsh_aliases' ~/.bashrc 2>/dev/null; then
-        printf '[[ -f ~/.zsh_aliases ]] && source ~/.zsh_aliases\n' >> ~/.bashrc
-      fi
+      setup_rc ~/.bashrc
     fi
 REMOTE_SCRIPT
 fi

@@ -39,11 +39,12 @@ case "${raw_arch}" in
 esac
 
 # Fetch latest tag from GitHub web redirect without using rate-limited API
+# Must never return non-zero, or set -e kills callers before their fallback line.
 get_latest_github_tag() {
   local repo="$1"
   curl -fsSI "https://github.com/${repo}/releases/latest" 2>/dev/null \
     | tr -d '\r' \
-    | awk -F'/tag/' '/^[Ll]ocation:/ {print $2}'
+    | awk -F'/tag/' '/^[Ll]ocation:/ {print $2}' || true
 }
 
 # 1. Neovim (using glibc-2.17 compatible build from neovim-releases)
@@ -62,7 +63,7 @@ else
     curl -fsSL "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-${nvim_arch}.tar.gz" \
       | tar -xz -C "${HOME}/.local" --strip-components=1
   fi
-  echo "     ✓ nvim installed: $(${HOME}/.local/bin/nvim --version | head -n1)"
+  echo "     ✓ nvim installed: $("${HOME}/.local/bin/nvim" --version | head -n1)"
 fi
 
 # 2. Herdr (static-pie linked binary)
@@ -71,7 +72,7 @@ if command -v herdr >/dev/null 2>&1 && herdr --version >/dev/null 2>&1; then
 else
   echo "     -> Installing Herdr..."
   curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR="${HOME}/.local/bin" sh
-  echo "     ✓ herdr installed: $(${HOME}/.local/bin/herdr --version 2>/dev/null || echo 'installed')"
+  echo "     ✓ herdr installed: $("${HOME}/.local/bin/herdr" --version 2>/dev/null || echo 'installed')"
 fi
 
 # 3. ripgrep (rg - statically linked musl)
@@ -88,7 +89,7 @@ else
   find "${tmp_dir}" -name rg -type f -exec mv {} "${HOME}/.local/bin/rg" \;
   chmod +x "${HOME}/.local/bin/rg"
   rm -rf "${tmp_dir}"
-  echo "     ✓ rg installed: $(${HOME}/.local/bin/rg --version | head -n1)"
+  echo "     ✓ rg installed: $("${HOME}/.local/bin/rg" --version | head -n1)"
 fi
 
 # 4. fd-find (fd - statically linked musl)
@@ -104,7 +105,7 @@ else
   find "${tmp_dir}" -name fd -type f -exec mv {} "${HOME}/.local/bin/fd" \;
   chmod +x "${HOME}/.local/bin/fd"
   rm -rf "${tmp_dir}"
-  echo "     ✓ fd installed: $(${HOME}/.local/bin/fd --version | head -n1)"
+  echo "     ✓ fd installed: $("${HOME}/.local/bin/fd" --version | head -n1)"
 fi
 
 # 5. lazygit (static Go binary)
@@ -121,7 +122,7 @@ else
   find "${tmp_dir}" -name lazygit -type f -exec mv {} "${HOME}/.local/bin/lazygit" \;
   chmod +x "${HOME}/.local/bin/lazygit"
   rm -rf "${tmp_dir}"
-  echo "     ✓ lazygit installed: $(${HOME}/.local/bin/lazygit --version | head -n1)"
+  echo "     ✓ lazygit installed: $("${HOME}/.local/bin/lazygit" --version | head -n1)"
 fi
 
 # 6. jq (statically linked binary)
@@ -129,9 +130,12 @@ if command -v jq >/dev/null 2>&1 && jq --version >/dev/null 2>&1; then
   echo "     ✓ jq: $(jq --version | head -n1)"
 else
   echo "     -> Installing jq..."
-  curl -fsSL -o "${HOME}/.local/bin/jq" "https://github.com/jqlang/jq/releases/latest/download/jq-linux-${arch_amd}"
-  chmod +x "${HOME}/.local/bin/jq"
-  echo "     ✓ jq installed: $(${HOME}/.local/bin/jq --version | head -n1)"
+  tmp_dir="$(mktemp -d)"
+  curl -fsSL -o "${tmp_dir}/jq" "https://github.com/jqlang/jq/releases/latest/download/jq-linux-${arch_amd}"
+  chmod +x "${tmp_dir}/jq"
+  mv "${tmp_dir}/jq" "${HOME}/.local/bin/jq"
+  rm -rf "${tmp_dir}"
+  echo "     ✓ jq installed: $("${HOME}/.local/bin/jq" --version | head -n1)"
 fi
 
 # 7. fzf (static Go binary)
@@ -148,7 +152,7 @@ else
   find "${tmp_dir}" -name fzf -type f -exec mv {} "${HOME}/.local/bin/fzf" \;
   chmod +x "${HOME}/.local/bin/fzf"
   rm -rf "${tmp_dir}"
-  echo "     ✓ fzf installed: $(${HOME}/.local/bin/fzf --version | head -n1)"
+  echo "     ✓ fzf installed: $("${HOME}/.local/bin/fzf" --version | head -n1)"
 fi
 
 # 8. uv (Python package manager & runner)
@@ -157,7 +161,7 @@ if command -v uv >/dev/null 2>&1 && uv --version >/dev/null 2>&1; then
 else
   echo "     -> Installing uv..."
   curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="${HOME}/.local/bin" sh
-  echo "     ✓ uv installed: $(${HOME}/.local/bin/uv --version 2>/dev/null || echo 'installed')"
+  echo "     ✓ uv installed: $("${HOME}/.local/bin/uv" --version 2>/dev/null || echo 'installed')"
 fi
 
 # 9. fnm (Fast Node Manager for Mason / LSPs)
@@ -179,10 +183,13 @@ else
   echo "     -> Installing tree-sitter CLI..."
   ts_tag="$(get_latest_github_tag "tree-sitter/tree-sitter")"
   ts_tag="${ts_tag:-v0.27.0}"
+  tmp_dir="$(mktemp -d)"
   curl -fsSL "https://github.com/tree-sitter/tree-sitter/releases/download/${ts_tag}/tree-sitter-linux-${ts_arch}.gz" \
-    | gzip -dc > "${HOME}/.local/bin/tree-sitter"
-  chmod +x "${HOME}/.local/bin/tree-sitter"
-  echo "     ✓ tree-sitter installed: $(${HOME}/.local/bin/tree-sitter --version | head -n1)"
+    | gzip -dc > "${tmp_dir}/tree-sitter"
+  chmod +x "${tmp_dir}/tree-sitter"
+  mv "${tmp_dir}/tree-sitter" "${HOME}/.local/bin/tree-sitter"
+  rm -rf "${tmp_dir}"
+  echo "     ✓ tree-sitter installed: $("${HOME}/.local/bin/tree-sitter" --version | head -n1)"
 fi
 
 echo "     ✅ Remote CLI tools check complete!"
