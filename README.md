@@ -75,7 +75,7 @@ Software that is fine personally but a policy problem on a work machine is gated
 ./scripts/rebuild.sh                   # work: the shared set only
 ```
 
-Set `manualProfile = "home"` at the top of `flake.nix` to make it permanent for a machine. Note it takes precedence, so `--profile work` then becomes a silent no-op; leave it empty if you want the flag to decide. `home` adds `google-drive`, `openvpn-connect`, `tailscale-app`, `nmap`, `wireguard-tools` and `yt-dlp`.
+Set `manualProfile = "home"` at the top of `flake.nix` to make it permanent for a machine. Note it takes precedence, so `--profile work` then becomes a silent no-op; leave it empty if you want the flag to decide. `home` adds the casks `google-drive`, `openvpn-connect`, `tailscale-app`, `windows-app` and `zoom`; the formulae `nmap`, `wireguard-tools` and `yt-dlp`; and the Mac App Store app `Irvue`.
 
 `sync-remote.sh` takes the same flag, and it controls the remote Git identity:
 
@@ -89,8 +89,9 @@ On a work host `personal.conf` is not copied at all, and any existing copy is re
 **Switching profile does not uninstall anything.** `homebrew.onActivation.cleanup` is `"none"`, so dropping a package from the list stops it being managed but leaves it on disk. To actually remove the personal set from a machine:
 
 ```sh
-brew uninstall --cask google-drive openvpn-connect tailscale-app
+brew uninstall --cask google-drive openvpn-connect tailscale-app windows-app zoom
 brew uninstall nmap wireguard-tools yt-dlp
+mas uninstall 1039633667   # Irvue
 ```
 
 ## Managed links

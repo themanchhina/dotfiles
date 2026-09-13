@@ -52,7 +52,7 @@
     taps = [
       "sdkman/tap"
     ];
-    masApps = {
+    masApps = lib.optionalAttrs (profile == "home") {
       "Irvue" = 1039633667;
     };
     # Personal VPN, sync and scanning tools are gated behind the "home" profile.
@@ -99,12 +99,12 @@
       "slack"
       "visual-studio-code"
       "wezterm"
-      "windows-app"
-      "zoom"
     ] ++ lib.optionals (profile == "home") [
       "google-drive"
       "openvpn-connect"
       "tailscale-app"
+      "windows-app"
+      "zoom"
     ];
     onActivation = {
       autoUpdate = false;
