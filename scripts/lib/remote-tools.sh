@@ -188,7 +188,9 @@ else
   confirm_installed fnm "${HOME}/.local/share/fnm/fnm" --version
 fi
 
-# 10. tree-sitter CLI (required for Neovim 0.12 parser compilation)
+# 10. tree-sitter CLI. nvim-treesitter's main branch compiles parsers with it and
+# wants >= 0.26.1. Every published build needs glibc >= 2.28, so on older hosts
+# (Amazon Linux 2 is 2.26) the only route is a source build.
 if command -v tree-sitter >/dev/null 2>&1 && tree-sitter --version </dev/null >/dev/null 2>&1; then
   echo "     ✓ tree-sitter: $(tree-sitter --version </dev/null | head -n1)"
 else
@@ -196,12 +198,37 @@ else
   ts_tag="$(get_latest_github_tag "tree-sitter/tree-sitter")"
   ts_tag="${ts_tag:-v0.27.0}"
   tmp_dir="$(mktemp -d)"
-  curl -fsSL "https://github.com/tree-sitter/tree-sitter/releases/download/${ts_tag}/tree-sitter-linux-${ts_arch}.gz" \
-    | gzip -dc > "${tmp_dir}/tree-sitter"
-  chmod +x "${tmp_dir}/tree-sitter"
-  mv "${tmp_dir}/tree-sitter" "${HOME}/.local/bin/tree-sitter"
+  ts_ok=0
+  if curl -fsSL "https://github.com/tree-sitter/tree-sitter/releases/download/${ts_tag}/tree-sitter-linux-${ts_arch}.gz" \
+    | gzip -dc > "${tmp_dir}/tree-sitter" 2>/dev/null && [[ -s "${tmp_dir}/tree-sitter" ]]; then
+    chmod +x "${tmp_dir}/tree-sitter"
+    # Verify before installing: a binary that cannot run is worse than none, because
+    # command -v finds it and Neovim then fails with a bare linker error.
+    if "${tmp_dir}/tree-sitter" --version </dev/null >/dev/null 2>&1; then
+      mv "${tmp_dir}/tree-sitter" "${HOME}/.local/bin/tree-sitter"
+      ts_ok=1
+    fi
+  fi
   rm -rf "${tmp_dir}"
-  confirm_installed tree-sitter "${HOME}/.local/bin/tree-sitter" --version
+
+  if [[ "${ts_ok}" -eq 0 ]]; then
+    rm -f "${HOME}/.local/bin/tree-sitter"
+    if command -v cargo >/dev/null 2>&1; then
+      echo "     ⚠️  Prebuilt tree-sitter needs glibc >= 2.28; building from source (several minutes)..."
+      ts_log="${TMPDIR:-/tmp}/tree-sitter-build.log"
+      if cargo install --locked tree-sitter-cli >"${ts_log}" 2>&1; then
+        ln -sf "${HOME}/.cargo/bin/tree-sitter" "${HOME}/.local/bin/tree-sitter"
+        ts_ok=1
+      else
+        echo "     ✗ cargo install tree-sitter-cli failed. Log: ${ts_log}" >&2
+      fi
+    else
+      echo "     ✗ tree-sitter unavailable: prebuilt needs glibc >= 2.28 and cargo is absent." >&2
+      echo "       Neovim treesitter parser compilation will not work on this host." >&2
+    fi
+  fi
+
+  [[ "${ts_ok}" -eq 1 ]] && confirm_installed tree-sitter "${HOME}/.local/bin/tree-sitter" --version
 fi
 
 echo "     ✅ Remote CLI tools check complete!"
