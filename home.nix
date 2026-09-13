@@ -8,40 +8,40 @@
   ...
 }:
 
-  let
-    link = path: config.lib.file.mkOutOfStoreSymlink "${dotfilesDirectory}/${path}";
-  in
-  {
-    home.username = username;
-    home.homeDirectory = homeDirectory;
-    home.stateVersion = "24.11";
-    home.packages = with pkgs; [
-      fd
-      fzf
-      jq
-      lazygit
-      neovim
-      ripgrep
-      tree-sitter
-    ];
-    home.sessionVariables = {
-      EDITOR = "nvim";
-      VISUAL = "nvim";
-      DOTFILES_DIR = dotfilesDirectory;
-    };
+let
+  link = path: config.lib.file.mkOutOfStoreSymlink "${dotfilesDirectory}/${path}";
+in
+{
+  home.username = username;
+  home.homeDirectory = homeDirectory;
+  home.stateVersion = "24.11";
+  home.packages = with pkgs; [
+    fd
+    fzf
+    jq
+    lazygit
+    neovim
+    ripgrep
+    tree-sitter
+  ];
+  home.sessionVariables = {
+    EDITOR = "nvim";
+    VISUAL = "nvim";
+    DOTFILES_DIR = dotfilesDirectory;
+  };
 
-    xdg.configFile."git/personal.conf".source = link "config/git/personal.conf";
-    xdg.configFile."git/ignore".source = link "config/git/ignore";
-    xdg.configFile."herdr/config.toml".source = link "config/herdr/config.toml";
-    xdg.configFile."wezterm/wezterm.lua".source = link "config/wezterm/wezterm.lua";
-    xdg.configFile."nvim".source = link "config/nvim";
+  xdg.configFile."git/personal.conf".source = link "config/git/personal.conf";
+  xdg.configFile."git/ignore".source = link "config/git/ignore";
+  xdg.configFile."herdr/config.toml".source = link "config/herdr/config.toml";
+  xdg.configFile."wezterm/wezterm.lua".source = link "config/wezterm/wezterm.lua";
+  xdg.configFile."nvim".source = link "config/nvim";
 
-    home.file.".claude/AGENTS.md".source = link "config/agent/AGENTS.md";
-    home.file.".gitconfig".source = link "config/git/config";
-    home.file.".ssh/config".source = link "config/ssh/config";
-    home.file.".p10k.zsh".source = link "config/zsh/p10k.zsh";
-    home.file.".zsh_aliases".source = link "config/zsh/zsh_aliases";
-    home.file."Library/Application Support/Code/User/settings.json".source = link "config/vscode/settings.json";
+  home.file.".claude/AGENTS.md".source = link "config/agent/AGENTS.md";
+  home.file.".gitconfig".source = link "config/git/config";
+  home.file.".ssh/config".source = link "config/ssh/config";
+  home.file.".p10k.zsh".source = link "config/zsh/p10k.zsh";
+  home.file.".zsh_aliases".source = link "config/zsh/zsh_aliases";
+  home.file."Library/Application Support/Code/User/settings.json".source = link "config/vscode/settings.json";
 
   # Casks install the app, not its extensions. Never fatal: brew may not have run.
   home.activation.vscodeExtensions = lib.hm.dag.entryAfter [ "writeBoundary" ] ''

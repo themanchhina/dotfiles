@@ -59,7 +59,7 @@
       homeDirectory = "/Users/${username}";
       dotfilesDirectory = if manualDotfilesDir != "" then manualDotfilesDir else if envDotfiles != "" then envDotfiles else "${homeDirectory}/code/daman/dotfiles";
 
-      mkDarwinSystem = nix-darwin.lib.darwinSystem {
+      darwinConfig = nix-darwin.lib.darwinSystem {
         specialArgs = {
           inherit
             dotfilesDirectory
@@ -96,6 +96,6 @@
       };
     in
     {
-      darwinConfigurations.default = mkDarwinSystem;
+      darwinConfigurations.default = darwinConfig;
     };
 }
