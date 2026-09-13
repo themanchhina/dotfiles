@@ -24,16 +24,7 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     -h|--help)
-      cat << 'EOF'
-Usage: rebuild.sh [options]
-
-Options:
-  --clean, -c      Purge Neovim plugin cache and reinstall fresh from lockfile
-  --profile NAME   work (default) or home. "home" adds personal VPN, sync and
-                   network tooling. Set manualProfile in flake.nix to make it
-                   permanent for this machine.
-  -h, --help       Show this help message
-EOF
+      print_usage "Validates and applies the current configuration."
       exit 0
       ;;
     *)

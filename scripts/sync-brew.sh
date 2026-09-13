@@ -40,14 +40,10 @@ done
 validate_profile "${profile}" || exit 1
 export DOTFILES_PROFILE="${profile}"
 
-if ! command -v brew >/dev/null 2>&1 && [[ ! -x /opt/homebrew/bin/brew ]]; then
-  echo "Error: Homebrew is not installed." >&2
-  exit 1
-fi
+brew_bin="$(find_brew_bin)"
+[[ -n "${brew_bin}" ]] || { echo "Error: Homebrew is not installed." >&2; exit 1; }
 
 command -v jq >/dev/null 2>&1 || { echo "Error: jq is not installed." >&2; exit 1; }
-
-brew_bin="$(command -v brew || echo "/opt/homebrew/bin/brew")"
 
 echo "==> Auditing Homebrew packages against darwin.nix (profile: ${profile:-work})..."
 

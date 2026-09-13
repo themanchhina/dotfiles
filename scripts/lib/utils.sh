@@ -25,6 +25,15 @@ find_nix_bin() {
   fi
 }
 
+# Locate brew; empty output means Homebrew is absent.
+find_brew_bin() {
+  if command -v brew >/dev/null 2>&1; then
+    command -v brew
+  elif [[ -x /opt/homebrew/bin/brew ]]; then
+    echo "/opt/homebrew/bin/brew"
+  fi
+}
+
 # work|home only; empty means "fall back to the default".
 validate_profile() {
   case "${1:-}" in
@@ -36,10 +45,22 @@ validate_profile() {
   esac
 }
 
-# Reject unknown options before the caller mutates anything. $1 is usage text.
+# bootstrap, rebuild and update take the same options; $1 describes this script.
+print_usage() {
+  printf 'Usage: %s [options]\n\n%s\n\nOptions:\n' "$(basename "$0")" "$1"
+  cat << 'EOF'
+  --clean, -c      Purge Neovim plugin cache and reinstall fresh from lockfile
+  --profile NAME   work (default) or home. "home" adds personal VPN, sync and
+                   network tooling. Set manualProfile in flake.nix to make it
+                   permanent for this machine.
+  -h, --help       Show this help message
+EOF
+}
+
+# Reject unknown options before the caller mutates anything. $1 is the summary.
 # Returns 0 ok, 1 reject, 2 help shown.
 validate_passthrough_args() {
-  local usage="$1"
+  local summary="$1"
   shift
   local args=("$@") i=0
   while [[ ${i} -lt ${#args[@]} ]]; do
@@ -54,7 +75,7 @@ validate_passthrough_args() {
         validate_profile "${args[${i}]#*=}" || return 1
         ;;
       -h|--help)
-        printf '%s\n' "${usage}"
+        print_usage "${summary}"
         return 2
         ;;
       *)

@@ -2,6 +2,8 @@
 set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+# shellcheck disable=SC1091
+source "${repo_dir}/scripts/lib/utils.sh" # validate_profile only; the rest act on this Mac
 
 usage() {
   cat << EOF
@@ -25,11 +27,12 @@ Arguments:
   <ssh-host>           SSH host name (e.g. 'india', 'home', or 'user@host.com')
 
 Options:
-  -t, --install-tools  Install missing CLI tools (nvim, herdr, rg, fd, lazygit, jq, fzf, uv, fnm, tree-sitter) via curl into ~/.local/bin
+  -t, --install-tools, --tools
+                       Install missing CLI tools (nvim, herdr, rg, fd, lazygit, jq, fzf, uv, fnm, tree-sitter) via curl into ~/.local/bin
   --profile NAME       work (default) or home. "home" applies the personal Git
                        identity on the remote; "work" leaves identity unset so
                        commits fail loudly rather than using a personal address
-  --clean              Purge remote Neovim plugin cache and reinstall fresh from lockfile
+  --clean, -c          Purge remote Neovim plugin cache and reinstall fresh from lockfile
   --dry-run            Show what would be copied without making changes
   -h, --help           Show this help message
 
@@ -61,7 +64,7 @@ while [[ $# -gt 0 ]]; do
       install_tools=1
       shift
       ;;
-    --clean)
+    --clean|-c)
       clean=1
       shift
       ;;
@@ -88,13 +91,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-case "${profile}" in
-  work|home) ;;
-  *)
-    echo "Error: --profile must be 'work' or 'home', got '${profile}'." >&2
-    exit 1
-    ;;
-esac
+# Empty is a valid "use the default" elsewhere, but this script has no default-fill.
+[[ -n "${profile}" ]] || { echo "Error: --profile requires a value." >&2; exit 1; }
+validate_profile "${profile}" || exit 1
 
 echo "==> Testing SSH connection to '${target_host}'..."
 if ! ssh -q -T -o BatchMode=yes -o ConnectTimeout=8 "${target_host}" exit 2>/dev/null; then
@@ -105,7 +104,10 @@ if ! ssh -q -T -o BatchMode=yes -o ConnectTimeout=8 "${target_host}" exit 2>/dev
 fi
 
 echo "==> Preparing remote directories on '${target_host}'..."
-if [[ ${dry_run} -eq 0 ]]; then
+if [[ ${dry_run} -eq 1 ]]; then
+  echo "     [dry-run] remote: rm -f ~/.oh-my-bash/log/update.lock"
+  echo "     [dry-run] remote: mkdir -p ~/.config/herdr ~/.config/git ~/.config/nvim ~/.local/bin ~/.local/share ~/.claude"
+else
   ssh -T "${target_host}" '
     rm -f ~/.oh-my-bash/log/update.lock 2>/dev/null || true
     mkdir -p ~/.config/herdr ~/.config/git ~/.config/nvim ~/.local/bin ~/.local/share ~/.claude

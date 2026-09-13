@@ -17,19 +17,18 @@ if [[ "${os}" != "Linux" ]]; then
   echo "     ⚠️  Note: Remote tool installer currently targets Linux hosts (detected: ${os})."
 fi
 
+# Four naming schemes, one per publisher: musl triples, GOARCH, nvim/lazygit assets, tree-sitter assets.
 case "${raw_arch}" in
   x86_64|amd64)
-    arch_x86="x86_64"
-    arch_amd="amd64"
-    nvim_arch="x86_64"
-    lazygit_arch="x86_64"
+    musl_arch="x86_64"
+    go_arch="amd64"
+    release_arch="x86_64"
     ts_arch="x64"
     ;;
   aarch64|arm64)
-    arch_x86="aarch64"
-    arch_amd="arm64"
-    nvim_arch="arm64"
-    lazygit_arch="arm64"
+    musl_arch="aarch64"
+    go_arch="arm64"
+    release_arch="arm64"
     ts_arch="arm64"
     ;;
   *)
@@ -38,17 +37,28 @@ case "${raw_arch}" in
     ;;
 esac
 
-# Fetch latest tag from GitHub web redirect without using rate-limited API
+# Latest tag from the GitHub web redirect, avoiding the rate-limited API; $2 on failure.
 # Must never return non-zero, or set -e kills callers before their fallback line.
-get_latest_github_tag() {
-  local repo="$1"
-  curl -fsSI "https://github.com/${repo}/releases/latest" 2>/dev/null \
+latest_github_tag() {
+  local tag default="${2:-}"
+  tag="$(curl -fsSI "https://github.com/$1/releases/latest" 2>/dev/null \
     | tr -d '\r' \
-    | awk -F'/tag/' '/^[Ll]ocation:/ {print $2}' || true
+    | awk -F'/tag/' '/^[Ll]ocation:/ {print $2}')" || tag=""
+  echo "${tag:-${default}}"
 }
 
-# Assign inside `if` or set -e aborts here; empty output means a 0-byte binary bash ran as an empty script.
-# </dev/null is load-bearing: this script arrives on stdin, so a probe can eat it.
+# Already present and runnable? </dev/null is load-bearing: this script arrives on stdin.
+# Empty output counts as broken, as in confirm_installed, so a 0-byte binary reinstalls.
+report_installed() {
+  local name="$1" out
+  command -v "${name}" >/dev/null 2>&1 || return 1
+  out="$("${name}" --version </dev/null 2>/dev/null)" || return 1
+  [[ -n "${out}" ]] || return 1
+  echo "     ✓ ${name}: ${out%%$'\n'*}"
+}
+
+# Assign inside `if` or set -e aborts here; empty output means a 0-byte binary bash ran as an
+# empty script. </dev/null here too: this script arrives on stdin, so a probe can eat it.
 confirm_installed() {
   local name="$1"; shift
   local out
@@ -59,91 +69,69 @@ confirm_installed() {
   fi
 }
 
+# Extract one named binary out of a .tar.gz release into ~/.local/bin.
+install_tarball_bin() {
+  local name="$1" url="$2" tmp
+  tmp="$(mktemp -d)"
+  curl -fsSL "${url}" | tar -xz -C "${tmp}"
+  find "${tmp}" -name "${name}" -type f -exec mv {} "${HOME}/.local/bin/${name}" \;
+  chmod +x "${HOME}/.local/bin/${name}"
+  rm -rf "${tmp}"
+  confirm_installed "${name}" "${HOME}/.local/bin/${name}" --version
+}
+
 # 1. Neovim (using glibc-2.17 compatible build from neovim-releases)
-if command -v nvim >/dev/null 2>&1 && nvim --version </dev/null >/dev/null 2>&1; then
-  echo "     ✓ nvim: $(nvim --version </dev/null | head -n1)"
-else
+if ! report_installed nvim; then
   if command -v nvim >/dev/null 2>&1; then
     echo "     ⚠️  Existing nvim binary cannot execute (likely glibc version mismatch). Reinstalling with GLIBC 2.17+ build..."
   fi
-  echo "     -> Installing Neovim (${nvim_arch}) with GLIBC 2.17+ compatibility..."
-  nvim_tag="$(get_latest_github_tag "neovim/neovim-releases")"
-  nvim_tag="${nvim_tag:-v0.12.5}"
-  if ! curl -fsSL "https://github.com/neovim/neovim-releases/releases/download/${nvim_tag}/nvim-linux-${nvim_arch}.tar.gz" \
+  echo "     -> Installing Neovim (${release_arch}) with GLIBC 2.17+ compatibility..."
+  nvim_tag="$(latest_github_tag neovim/neovim-releases v0.12.5)"
+  if ! curl -fsSL "https://github.com/neovim/neovim-releases/releases/download/${nvim_tag}/nvim-linux-${release_arch}.tar.gz" \
     | tar -xz -C "${HOME}/.local" --strip-components=1 2>/dev/null; then
     echo "     -> Fallback: Downloading standard Neovim release..."
-    curl -fsSL "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-${nvim_arch}.tar.gz" \
+    curl -fsSL "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-${release_arch}.tar.gz" \
       | tar -xz -C "${HOME}/.local" --strip-components=1
   fi
   confirm_installed nvim "${HOME}/.local/bin/nvim" --version
 fi
 
 # 2. Herdr (static-pie linked binary)
-if command -v herdr >/dev/null 2>&1 && herdr --version </dev/null >/dev/null 2>&1; then
-  echo "     ✓ herdr: $(herdr --version </dev/null 2>/dev/null || echo 'installed')"
-else
+if ! report_installed herdr; then
   echo "     -> Installing Herdr..."
   curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR="${HOME}/.local/bin" sh
   confirm_installed herdr "${HOME}/.local/bin/herdr" --version
 fi
 
-# 3. ripgrep (rg - statically linked musl)
-if command -v rg >/dev/null 2>&1 && rg --version </dev/null >/dev/null 2>&1; then
-  echo "     ✓ rg: $(rg --version </dev/null | head -n1)"
-else
+# 3. ripgrep (statically linked musl)
+if ! report_installed rg; then
   echo "     -> Installing ripgrep (musl static)..."
-  rg_tag="$(get_latest_github_tag "BurntSushi/ripgrep")"
-  rg_tag="${rg_tag:-15.2.0}"
-  rg_ver="${rg_tag#v}"
-  tmp_dir="$(mktemp -d)"
-  curl -fsSL "https://github.com/BurntSushi/ripgrep/releases/download/${rg_tag}/ripgrep-${rg_ver}-${arch_x86}-unknown-linux-musl.tar.gz" \
-    | tar -xz -C "${tmp_dir}"
-  find "${tmp_dir}" -name rg -type f -exec mv {} "${HOME}/.local/bin/rg" \;
-  chmod +x "${HOME}/.local/bin/rg"
-  rm -rf "${tmp_dir}"
-  confirm_installed rg "${HOME}/.local/bin/rg" --version
+  rg_tag="$(latest_github_tag BurntSushi/ripgrep 15.2.0)"
+  install_tarball_bin rg \
+    "https://github.com/BurntSushi/ripgrep/releases/download/${rg_tag}/ripgrep-${rg_tag#v}-${musl_arch}-unknown-linux-musl.tar.gz"
 fi
 
-# 4. fd-find (fd - statically linked musl)
-if command -v fd >/dev/null 2>&1 && fd --version </dev/null >/dev/null 2>&1; then
-  echo "     ✓ fd: $(fd --version </dev/null | head -n1)"
-else
+# 4. fd-find (statically linked musl)
+if ! report_installed fd; then
   echo "     -> Installing fd (musl static)..."
-  fd_tag="$(get_latest_github_tag "sharkdp/fd")"
-  fd_tag="${fd_tag:-v10.5.0}"
-  tmp_dir="$(mktemp -d)"
-  curl -fsSL "https://github.com/sharkdp/fd/releases/download/${fd_tag}/fd-${fd_tag}-${arch_x86}-unknown-linux-musl.tar.gz" \
-    | tar -xz -C "${tmp_dir}"
-  find "${tmp_dir}" -name fd -type f -exec mv {} "${HOME}/.local/bin/fd" \;
-  chmod +x "${HOME}/.local/bin/fd"
-  rm -rf "${tmp_dir}"
-  confirm_installed fd "${HOME}/.local/bin/fd" --version
+  fd_tag="$(latest_github_tag sharkdp/fd v10.5.0)"
+  install_tarball_bin fd \
+    "https://github.com/sharkdp/fd/releases/download/${fd_tag}/fd-${fd_tag}-${musl_arch}-unknown-linux-musl.tar.gz"
 fi
 
 # 5. lazygit (static Go binary)
-if command -v lazygit >/dev/null 2>&1 && lazygit --version </dev/null >/dev/null 2>&1; then
-  echo "     ✓ lazygit: $(lazygit --version </dev/null | head -n1)"
-else
+if ! report_installed lazygit; then
   echo "     -> Installing lazygit..."
-  lg_tag="$(get_latest_github_tag "jesseduffield/lazygit")"
-  lg_tag="${lg_tag:-v0.65.0}"
-  lg_ver="${lg_tag#v}"
-  tmp_dir="$(mktemp -d)"
-  curl -fsSL "https://github.com/jesseduffield/lazygit/releases/download/${lg_tag}/lazygit_${lg_ver}_linux_${lazygit_arch}.tar.gz" \
-    | tar -xz -C "${tmp_dir}"
-  find "${tmp_dir}" -name lazygit -type f -exec mv {} "${HOME}/.local/bin/lazygit" \;
-  chmod +x "${HOME}/.local/bin/lazygit"
-  rm -rf "${tmp_dir}"
-  confirm_installed lazygit "${HOME}/.local/bin/lazygit" --version
+  lg_tag="$(latest_github_tag jesseduffield/lazygit v0.65.0)"
+  install_tarball_bin lazygit \
+    "https://github.com/jesseduffield/lazygit/releases/download/${lg_tag}/lazygit_${lg_tag#v}_linux_${release_arch}.tar.gz"
 fi
 
-# 6. jq (statically linked binary)
-if command -v jq >/dev/null 2>&1 && jq --version </dev/null >/dev/null 2>&1; then
-  echo "     ✓ jq: $(jq --version </dev/null | head -n1)"
-else
+# 6. jq (single statically linked binary, not a tarball)
+if ! report_installed jq; then
   echo "     -> Installing jq..."
   tmp_dir="$(mktemp -d)"
-  curl -fsSL -o "${tmp_dir}/jq" "https://github.com/jqlang/jq/releases/latest/download/jq-linux-${arch_amd}"
+  curl -fsSL -o "${tmp_dir}/jq" "https://github.com/jqlang/jq/releases/latest/download/jq-linux-${go_arch}"
   chmod +x "${tmp_dir}/jq"
   mv "${tmp_dir}/jq" "${HOME}/.local/bin/jq"
   rm -rf "${tmp_dir}"
@@ -151,35 +139,22 @@ else
 fi
 
 # 7. fzf (static Go binary)
-if command -v fzf >/dev/null 2>&1 && fzf --version </dev/null >/dev/null 2>&1; then
-  echo "     ✓ fzf: $(fzf --version </dev/null | head -n1)"
-else
+if ! report_installed fzf; then
   echo "     -> Installing fzf..."
-  fzf_tag="$(get_latest_github_tag "junegunn/fzf")"
-  fzf_tag="${fzf_tag:-v0.74.3}"
-  fzf_ver="${fzf_tag#v}"
-  tmp_dir="$(mktemp -d)"
-  curl -fsSL "https://github.com/junegunn/fzf/releases/download/${fzf_tag}/fzf-${fzf_ver}-linux_${arch_amd}.tar.gz" \
-    | tar -xz -C "${tmp_dir}"
-  find "${tmp_dir}" -name fzf -type f -exec mv {} "${HOME}/.local/bin/fzf" \;
-  chmod +x "${HOME}/.local/bin/fzf"
-  rm -rf "${tmp_dir}"
-  confirm_installed fzf "${HOME}/.local/bin/fzf" --version
+  fzf_tag="$(latest_github_tag junegunn/fzf v0.74.3)"
+  install_tarball_bin fzf \
+    "https://github.com/junegunn/fzf/releases/download/${fzf_tag}/fzf-${fzf_tag#v}-linux_${go_arch}.tar.gz"
 fi
 
 # 8. uv (Python package manager & runner)
-if command -v uv >/dev/null 2>&1 && uv --version </dev/null >/dev/null 2>&1; then
-  echo "     ✓ uv: $(uv --version </dev/null | head -n1)"
-else
+if ! report_installed uv; then
   echo "     -> Installing uv..."
   curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="${HOME}/.local/bin" sh
   confirm_installed uv "${HOME}/.local/bin/uv" --version
 fi
 
-# 9. fnm (Fast Node Manager for Mason / LSPs)
-if (command -v fnm >/dev/null 2>&1 || [[ -x "${HOME}/.local/share/fnm/fnm" ]]) && fnm --version </dev/null >/dev/null 2>&1; then
-  echo "     ✓ fnm: $(fnm --version </dev/null 2>/dev/null || echo 'installed')"
-else
+# 9. fnm (Fast Node Manager for Mason / LSPs). Its install dir is already on PATH above.
+if ! report_installed fnm; then
   echo "     -> Installing fnm..."
   curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell --install-dir "${HOME}/.local/share/fnm"
   if [[ -x "${HOME}/.local/share/fnm/fnm" && ! -e "${HOME}/.local/bin/fnm" ]]; then
@@ -191,12 +166,9 @@ fi
 # 10. tree-sitter CLI. nvim-treesitter's main branch compiles parsers with it and
 # wants >= 0.26.1. Every published build needs glibc >= 2.28, so on older hosts
 # (Amazon Linux 2 is 2.26) the only route is a source build.
-if command -v tree-sitter >/dev/null 2>&1 && tree-sitter --version </dev/null >/dev/null 2>&1; then
-  echo "     ✓ tree-sitter: $(tree-sitter --version </dev/null | head -n1)"
-else
+if ! report_installed tree-sitter; then
   echo "     -> Installing tree-sitter CLI..."
-  ts_tag="$(get_latest_github_tag "tree-sitter/tree-sitter")"
-  ts_tag="${ts_tag:-v0.27.0}"
+  ts_tag="$(latest_github_tag tree-sitter/tree-sitter v0.27.0)"
   tmp_dir="$(mktemp -d)"
   ts_ok=0
   if curl -fsSL "https://github.com/tree-sitter/tree-sitter/releases/download/${ts_tag}/tree-sitter-linux-${ts_arch}.gz" \

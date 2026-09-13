@@ -5,22 +5,10 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # shellcheck disable=SC1091
 source "${repo_dir}/scripts/lib/utils.sh"
 
-usage_text=$(cat << 'EOF'
-Usage: bootstrap.sh [options]
-
-First activation on a new Mac: installs Determinate Nix if absent, then applies
-the configuration via rebuild.sh.
-
-Options:
-  --clean, -c      Purge Neovim plugin cache and reinstall fresh from lockfile
-  --profile NAME   work (default) or home
-  -h, --help       Show this help message
-EOF
-)
-
 # Validate first: everything below mutates before rebuild.sh sees these args.
 rc=0
-validate_passthrough_args "${usage_text}" "$@" || rc=$?
+validate_passthrough_args "First activation on a new Mac: installs Determinate Nix if absent,
+then applies the configuration via rebuild.sh." "$@" || rc=$?
 case ${rc} in
   0) ;;
   2) exit 0 ;;
