@@ -62,12 +62,17 @@ installed_casks="$("${brew_bin}" list --cask 2>/dev/null | sort || true)"
 # homebrew/* are Homebrew's own and are never declared, so they are not drift.
 installed_taps="$("${brew_bin}" tap 2>/dev/null | grep -v '^homebrew/' | sort || true)"
 
-# Parse declared brews, casks, and taps via Nix evaluation (accurate, comments/formatting agnostic)
+# One eval, projected to just the names: each `nix eval` is a full module-system
+# evaluation, and --impure gets no eval cache.
+declared_json="$("${nix_bin}" eval --impure --json \
+  "path:${repo_dir}#darwinConfigurations.default.config.homebrew" \
+  --apply 'h: { brews = map (b: b.name) h.brews; casks = map (c: c.name) h.casks; taps = map (t: t.name) h.taps; masApps = builtins.attrValues h.masApps; }')"
+
 # sub() strips the tap prefix: `brew list` reports short names only.
-declared_brews="$("${nix_bin}" eval --impure --json "path:${repo_dir}#darwinConfigurations.default.config.homebrew.brews" | jq -r '.[].name | sub(".*/"; "")' | sort)"
-declared_casks="$("${nix_bin}" eval --impure --json "path:${repo_dir}#darwinConfigurations.default.config.homebrew.casks" | jq -r '.[].name' | sort)"
-declared_taps="$("${nix_bin}" eval --impure --json "path:${repo_dir}#darwinConfigurations.default.config.homebrew.taps" | jq -r '.[].name' | sort)"
-declared_mas="$("${nix_bin}" eval --impure --json "path:${repo_dir}#darwinConfigurations.default.config.homebrew.masApps" | jq -r '.[]' | sort)"
+declared_brews="$(jq -r '.brews[] | sub(".*/"; "")' <<< "${declared_json}" | sort)"
+declared_casks="$(jq -r '.casks[]' <<< "${declared_json}" | sort)"
+declared_taps="$(jq -r '.taps[]' <<< "${declared_json}" | sort)"
+declared_mas="$(jq -r '.masApps[]' <<< "${declared_json}" | sort)"
 
 # Find top-level items installed on this Mac but missing in darwin.nix
 missing_in_nix_brews="$(comm -23 <(echo "${installed_leaves}") <(echo "${declared_brews}") | grep -v '^$' || true)"

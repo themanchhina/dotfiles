@@ -89,6 +89,8 @@ else
     -- switch --impure --flake "${flake}"
 fi
 
-restore_nvim_plugins "${clean}"
+# update.sh runs its own sync pass, so restoring to the lockfile first would
+# clone every plugin only to update it immediately.
+[[ "${_DOTFILES_SKIP_NVIM:-0}" == "1" ]] || restore_nvim_plugins "${clean}"
 
 echo "==> Rebuild completed successfully!"

@@ -36,6 +36,36 @@ validate_profile() {
   esac
 }
 
+# Reject unknown options before the caller mutates anything. $1 is usage text.
+# Returns 0 ok, 1 reject, 2 help shown.
+validate_passthrough_args() {
+  local usage="$1"
+  shift
+  local args=("$@") i=0
+  while [[ ${i} -lt ${#args[@]} ]]; do
+    case "${args[${i}]}" in
+      --clean|-c) ;;
+      --profile)
+        i=$((i + 1))
+        [[ ${i} -lt ${#args[@]} ]] || { echo "Error: --profile requires a value." >&2; return 1; }
+        validate_profile "${args[${i}]}" || return 1
+        ;;
+      --profile=*)
+        validate_profile "${args[${i}]#*=}" || return 1
+        ;;
+      -h|--help)
+        printf '%s\n' "${usage}"
+        return 2
+        ;;
+      *)
+        echo "Error: unknown option '${args[${i}]}'. See --help." >&2
+        return 1
+        ;;
+    esac
+    i=$((i + 1))
+  done
+}
+
 # Resolve the target user, exporting validated environment variables
 resolve_system_identity() {
   local resolved_user="${1:-${DARWIN_USER:-${SUDO_USER:-${USER:-$(id -un)}}}}"
@@ -64,11 +94,10 @@ run_nvim_headless() {
   fi
 }
 
-# Restore Neovim plugins from lazy-lock.json headlessly
-restore_nvim_plugins() {
-  local clean_mode="${1:-0}"
+# Check before the purge: without nvim, deleting the tree just loses it.
+nvim_pass() {
+  local clean_mode="$1" label="$2" cmd="$3"
 
-  # Check before the purge: without nvim, deleting the tree just loses it.
   if ! command -v nvim >/dev/null 2>&1; then
     if [[ "${clean_mode}" -eq 1 ]]; then
       echo "    Warning: --clean requested but nvim is not installed; skipping purge." >&2
@@ -77,15 +106,20 @@ restore_nvim_plugins() {
   fi
 
   if [[ "${clean_mode}" -eq 1 ]]; then
-    # Not ~/.local/state/nvim: that is shada and undo, which restore cannot rebuild.
+    # Not ~/.local/state/nvim: that is shada and undo, which cannot be rebuilt.
     echo "==> Purging Neovim plugin caches (~/.local/share/nvim/lazy, site, ~/.cache/nvim)..."
     rm -rf "${HOME}/.local/share/nvim/lazy" "${HOME}/.local/share/nvim/site" "${HOME}/.cache/nvim"
   fi
 
-  run_nvim_headless "Restoring Neovim plugins and treesitter parsers..." "+Lazy! restore"
+  run_nvim_headless "${label}" "${cmd}"
 }
 
-# Sync and update Neovim plugins headlessly
+# Pin plugins to lazy-lock.json
+restore_nvim_plugins() {
+  nvim_pass "${1:-0}" "Restoring Neovim plugins and treesitter parsers..." "+Lazy! restore"
+}
+
+# Advance plugins and rewrite lazy-lock.json
 sync_nvim_plugins() {
-  run_nvim_headless "Syncing Neovim plugins and treesitter..." "+Lazy! sync"
+  nvim_pass "${1:-0}" "Syncing Neovim plugins and treesitter..." "+Lazy! sync"
 }

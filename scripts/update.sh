@@ -5,22 +5,7 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # shellcheck disable=SC1091
 source "${repo_dir}/scripts/lib/utils.sh"
 
-# Validate first, incl. --help: rebuild.sh rejects too late, after brew moved.
-args=("$@")
-i=0
-while [[ ${i} -lt ${#args[@]} ]]; do
-  case "${args[${i}]}" in
-    --clean|-c) ;;
-    --profile)
-      i=$((i + 1))
-      [[ ${i} -lt ${#args[@]} ]] || { echo "Error: --profile requires a value." >&2; exit 1; }
-      validate_profile "${args[${i}]}" || exit 1
-      ;;
-    --profile=*)
-      validate_profile "${args[${i}]#*=}" || exit 1
-      ;;
-    -h|--help)
-      cat << 'EOF'
+usage_text=$(cat << 'EOF'
 Usage: update.sh [options]
 
 Updates Nix flake inputs and Homebrew packages, then applies the configuration.
@@ -30,15 +15,19 @@ Options:
   --profile NAME   work (default) or home
   -h, --help       Show this help message
 EOF
-      exit 0
-      ;;
-    *)
-      echo "Error: unknown option '${args[${i}]}'. See --help." >&2
-      exit 1
-      ;;
-  esac
-  i=$((i + 1))
-done
+)
+
+# Validate first: everything below mutates before rebuild.sh sees these args.
+rc=0
+validate_passthrough_args "${usage_text}" "$@" || rc=$?
+case ${rc} in
+  0) ;;
+  2) exit 0 ;;
+  *) exit 1 ;;
+esac
+
+clean=0
+for a in "$@"; do [[ "$a" == "--clean" || "$a" == "-c" ]] && clean=1; done
 
 source_nix_env
 nix_bin="$(find_nix_bin "${repo_dir}")"
@@ -53,13 +42,13 @@ echo "==> Updating Nix flake inputs..."
 "${nix_bin}" flake update --flake "path:${repo_dir}"
 
 echo "==> Rebuilding system..."
-"${repo_dir}/scripts/rebuild.sh" "$@"
+_DOTFILES_SKIP_NVIM=1 "${repo_dir}/scripts/rebuild.sh" "$@"
 
 if [[ -x "${brew_bin}" ]]; then
   echo "==> Upgrading Homebrew packages..."
   "${brew_bin}" upgrade
 fi
 
-sync_nvim_plugins
+sync_nvim_plugins "${clean}"
 
 echo "==> System successfully updated!"

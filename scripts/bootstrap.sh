@@ -5,22 +5,7 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # shellcheck disable=SC1091
 source "${repo_dir}/scripts/lib/utils.sh"
 
-# Validate first: everything below mutates before rebuild.sh sees these args.
-args=("$@")
-i=0
-while [[ ${i} -lt ${#args[@]} ]]; do
-  case "${args[${i}]}" in
-    --clean|-c) ;;
-    --profile)
-      i=$((i + 1))
-      [[ ${i} -lt ${#args[@]} ]] || { echo "Error: --profile requires a value." >&2; exit 1; }
-      validate_profile "${args[${i}]}" || exit 1
-      ;;
-    --profile=*)
-      validate_profile "${args[${i}]#*=}" || exit 1
-      ;;
-    -h|--help)
-      cat << 'EOF'
+usage_text=$(cat << 'EOF'
 Usage: bootstrap.sh [options]
 
 First activation on a new Mac: installs Determinate Nix if absent, then applies
@@ -31,15 +16,16 @@ Options:
   --profile NAME   work (default) or home
   -h, --help       Show this help message
 EOF
-      exit 0
-      ;;
-    *)
-      echo "Error: unknown option '${args[${i}]}'. See --help." >&2
-      exit 1
-      ;;
-  esac
-  i=$((i + 1))
-done
+)
+
+# Validate first: everything below mutates before rebuild.sh sees these args.
+rc=0
+validate_passthrough_args "${usage_text}" "$@" || rc=$?
+case ${rc} in
+  0) ;;
+  2) exit 0 ;;
+  *) exit 1 ;;
+esac
 
 echo "==> Validating system requirements..."
 
