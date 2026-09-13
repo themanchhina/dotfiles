@@ -124,7 +124,7 @@ VS Code runs on the Mac and reaches the remotes with the `Kelvin.vscode-sshfs` e
 
 The cask and the extension are declared, and `settings.json` is symlinked from `config/vscode/settings.json` so the settings UI stays writable.
 
-The tracked `settings.json` starts empty; VS Code owns it and its edits get versioned. Set `sshfs.configpaths` to `~/.config/vscode-sshfs` once, as an **absolute** path, via the settings UI. Host definitions stay out of this repo because it is public and the SSH FS UI writes a password into a host config if you enter one. Each file there is a JSON array, comments allowed:
+The tracked `settings.json` starts empty; VS Code owns it and its edits get versioned. `sshfs.configpaths` is left unset because it must be an **absolute** path and so differs per machine: set it once per Mac via the settings UI, to the path activation prints. Host definitions stay out of this repo because it is public and the SSH FS UI writes a password into a host config if you enter one. Each file there is a JSON array, comments allowed:
 
 ```jsonc
 // ~/.config/vscode-sshfs/india.json

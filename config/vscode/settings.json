@@ -1,6 +1,6 @@
 {
-  // VS Code owns this file; it is tracked so its edits are versioned. Keep SSH FS
-  // hosts in ~/.config/vscode-sshfs/*.json: this repo is public, and the SSH FS UI
-  // writes a password into a host config if you enter one.
-  "sshfs.configpaths": ["/Users/damanprc/.config/vscode-sshfs"]
+  // VS Code owns this file; it is tracked so its edits are versioned. Deliberately
+  // empty: sshfs.configpaths must be an absolute path, so it is per-machine and
+  // activation prints the right one. Keep hosts in ~/.config/vscode-sshfs/*.json,
+  // since this repo is public and the SSH FS UI stores a password if you enter one.
 }
