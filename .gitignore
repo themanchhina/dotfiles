@@ -1,2 +1,7 @@
 .DS_Store
 result
+
+# Machine-specific files are never tracked: this repo is public, so the naming
+# convention does the work instead of an enumeration that goes stale.
+*.local
+*.local.*
