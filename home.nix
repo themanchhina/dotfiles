@@ -55,10 +55,13 @@
 
     # configpaths must be absolute, so it cannot follow $HOME. Fail loudly.
     sshfs_dir="${homeDirectory}/.config/vscode-sshfs"
+    settings="${dotfilesDirectory}/config/vscode/settings.json"
     mkdir -p "$sshfs_dir"
-    if ! grep -qF "$sshfs_dir" "${dotfilesDirectory}/config/vscode/settings.json" 2>/dev/null; then
-      echo "    Warning: sshfs.configpaths in config/vscode/settings.json does not match" >&2
-      echo "             $sshfs_dir -- SSH FS will find no host configurations." >&2
+    if ! grep -q sshfs.configpaths "$settings" 2>/dev/null; then
+      echo "    Note: set sshfs.configpaths to $sshfs_dir in VS Code settings." >&2
+    elif ! grep -qF "$sshfs_dir" "$settings" 2>/dev/null; then
+      echo "    Warning: sshfs.configpaths does not match $sshfs_dir --" >&2
+      echo "             SSH FS will find no host configurations." >&2
     fi
   '';
 
