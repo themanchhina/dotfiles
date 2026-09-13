@@ -40,6 +40,29 @@
     home.file.".ssh/config".source = link "config/ssh/config";
     home.file.".p10k.zsh".source = link "config/zsh/p10k.zsh";
     home.file.".zsh_aliases".source = link "config/zsh/zsh_aliases";
+    home.file."Library/Application Support/Code/User/settings.json".source =
+      link "config/vscode/settings.json";
+
+  # Casks install the app, not its extensions. Idempotent: re-running prints
+  # "already installed". Never fatal, since Homebrew may not have run yet.
+  home.activation.vscodeExtensions = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+    code_bin=/opt/homebrew/bin/code
+    if [ -x "$code_bin" ]; then
+      for ext in Kelvin.vscode-sshfs; do
+        "$code_bin" --install-extension "$ext" >/dev/null 2>&1 || \
+          echo "    Warning: could not install VS Code extension $ext" >&2
+      done
+    fi
+
+    # sshfs.configpaths is an absolute path, so it cannot follow $HOME. Warn
+    # loudly rather than let SSH FS silently find no hosts.
+    sshfs_dir="${homeDirectory}/.config/vscode-sshfs"
+    mkdir -p "$sshfs_dir"
+    if ! grep -qF "$sshfs_dir" "${dotfilesDirectory}/config/vscode/settings.json" 2>/dev/null; then
+      echo "    Warning: sshfs.configpaths in config/vscode/settings.json does not match" >&2
+      echo "             $sshfs_dir -- SSH FS will find no host configurations." >&2
+    fi
+  '';
 
   programs.direnv = {
     enable = true;

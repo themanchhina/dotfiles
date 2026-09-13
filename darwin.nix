@@ -97,6 +97,7 @@
       "raycast"
       "slack"
       "tailscale-app"
+      "visual-studio-code"
       "wezterm"
       "windows-app"
       "zoom"

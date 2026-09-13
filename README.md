@@ -86,6 +86,23 @@ It syncs the Herdr, Neovim, Git and Zsh configuration, appends `PATH`, `EDITOR` 
 
 It also generates `~/.config/git/local.conf` on non-Darwin hosts, which clears the macOS credential helper and applies the personal Git identity unconditionally. That file is owned by this script and is overwritten on every sync.
 
+## Browsing remote files in VS Code
+
+VS Code runs on the Mac and reaches the remotes with the `Kelvin.vscode-sshfs` extension, which mounts a remote directory as a workspace folder over SFTP. Nothing is installed on the remote and no port is opened, so it works on hosts whose glibc is too old for VS Code Remote-SSH or code-server. `Cmd+K V` gives a side-by-side markdown preview with synchronized scrolling, and mermaid diagrams render natively since VS Code 1.121.
+
+The cask and the extension are declared, and `settings.json` is symlinked from `config/vscode/settings.json` so the settings UI stays writable.
+
+Host definitions are deliberately **not** in this repo, which is public. They live in `~/.config/vscode-sshfs/*.json`, pointed at by `sshfs.configpaths`. Each file is a JSON array, comments allowed:
+
+```jsonc
+// ~/.config/vscode-sshfs/india.json
+[
+  { "name": "india", "host": "india.damanchhina.com", "username": "daman", "root": "/home/daman" }
+]
+```
+
+`sshfs.configpaths` must be an absolute path; a relative one or a `~` is silently ignored, so activation warns if it does not match `$HOME`. Note the extension does not read `~/.ssh/config`, so host, user and key are repeated here.
+
 ## Git identity
 
 The personal identity applies only inside `~/code/daman/`, and `user.useConfigOnly` is set. A repository outside those roots has no identity, so rather than silently attributing a commit to the personal address, git refuses.
