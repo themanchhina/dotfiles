@@ -62,6 +62,33 @@ Homebrew upgrades are deliberately disabled during normal rebuilds so a settings
 ./scripts/update.sh
 ```
 
+## Profiles
+
+Software that is fine personally but a policy problem on a work machine is gated behind a profile. `work` is the default, so an unset value can never install personal VPN or sync tooling.
+
+```sh
+./scripts/rebuild.sh --profile home    # adds the personal set
+./scripts/rebuild.sh                   # work: the shared set only
+```
+
+Set `manualProfile = "home"` at the top of `flake.nix` to make it permanent for a machine, rather than remembering the flag. `home` adds `google-drive`, `openvpn-connect`, `tailscale-app`, `nmap`, `wireguard-tools` and `yt-dlp`.
+
+`sync-remote.sh` takes the same flag, and it controls the remote Git identity:
+
+```sh
+./scripts/sync-remote.sh india --profile home   # applies the personal identity
+./scripts/sync-remote.sh devbox                 # work: leaves identity unset
+```
+
+On a work host the personal identity is deliberately not applied. Combined with `user.useConfigOnly`, a commit there fails until you set the right identity, rather than silently attributing it to a personal address.
+
+**Switching profile does not uninstall anything.** `homebrew.onActivation.cleanup` is `"none"`, so dropping a package from the list stops it being managed but leaves it on disk. To actually remove the personal set from a machine:
+
+```sh
+brew uninstall --cask google-drive openvpn-connect tailscale-app
+brew uninstall nmap wireguard-tools yt-dlp
+```
+
 ## Managed links
 
 Home Manager declaratively manages all destination symlinks pointing to this repository (`mkOutOfStoreSymlink`).

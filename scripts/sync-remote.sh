@@ -12,7 +12,8 @@ Syncs essential configuration files to a remote machine over SSH:
   - Neovim: ~/.config/nvim/ (init.lua, lazy-lock.json, plugins, keymaps)
   - Git: ~/.gitconfig, ~/.config/git/{ignore,personal.conf}, and a generated
          ~/.config/git/local.conf (owned by this script: clears the macOS
-         credential helper and applies the personal identity unconditionally)
+         credential helper; applies the personal identity only with
+         --profile home, so a work host keeps its own identity)
   - Zsh: ~/.zsh_aliases (agent shortcuts gi/co/cc, docker wrappers, editor aliases)
   - Shell: sets PATH (~/.local/bin), EDITOR=nvim, TERM_PROGRAM=WezTerm & sources
            aliases in remote ~/.zshrc / ~/.bashrc
@@ -23,6 +24,9 @@ Arguments:
 
 Options:
   -t, --install-tools  Install missing CLI tools (nvim, herdr, rg, fd, lazygit, jq, fzf, uv, fnm, tree-sitter) via curl into ~/.local/bin
+  --profile NAME       work (default) or home. "home" applies the personal Git
+                       identity on the remote; "work" leaves identity unset so
+                       commits fail loudly rather than using a personal address
   --clean              Purge remote Neovim plugin cache and reinstall fresh from lockfile
   --dry-run            Show what would be copied without making changes
   -h, --help           Show this help message
@@ -48,6 +52,7 @@ shift
 install_tools=0
 dry_run=0
 clean=0
+profile="work"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -t|--install-tools|--tools)
@@ -56,6 +61,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --clean)
       clean=1
+      shift
+      ;;
+    --profile)
+      profile="${2:-}"
+      shift 2
+      ;;
+    --profile=*)
+      profile="${1#*=}"
       shift
       ;;
     --dry-run)
@@ -71,6 +84,14 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+case "${profile}" in
+  work|home) ;;
+  *)
+    echo "Error: --profile must be 'work' or 'home', got '${profile}'." >&2
+    exit 1
+    ;;
+esac
 
 echo "==> Testing SSH connection to '${target_host}'..."
 if ! ssh -q -T -o BatchMode=yes -o ConnectTimeout=8 "${target_host}" exit 2>/dev/null; then
@@ -156,14 +177,20 @@ else
   scp -q "${repo_dir}/config/git/personal.conf" "${target_host}:~/.config/git/personal.conf"
   scp -q "${repo_dir}/config/git/ignore" "${target_host}:~/.config/git/ignore"
 
-  # Empty `helper =` drops osxkeychain; the gitdir scoping keys off a Mac-only path.
-  ssh -T "${target_host}" '
+  # Empty `helper =` drops osxkeychain, which does not exist off macOS. The
+  # identity include is profile-gated: on a work host, imposing the personal
+  # address would author every commit there as a personal identity.
+  ssh -T "${target_host}" "bash -s -- ${profile}" << 'REMOTE_GIT'
+    remote_profile="$1"
+    [ "$(uname -s)" = "Darwin" ] && exit 0
     mkdir -p ~/.config/git
-    if [ "$(uname -s)" != "Darwin" ]; then
+    if [ "${remote_profile}" = "home" ]; then
       printf "[credential]\n\thelper =\n[include]\n\tpath = ~/.config/git/personal.conf\n" \
         > ~/.config/git/local.conf
+    else
+      printf "[credential]\n\thelper =\n" > ~/.config/git/local.conf
     fi
-  ' </dev/null
+REMOTE_GIT
 fi
 
 # 4. Zsh aliases

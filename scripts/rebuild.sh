@@ -6,11 +6,20 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 source "${repo_dir}/scripts/lib/utils.sh"
 
 clean=0
+profile=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --clean|-c)
       clean=1
+      shift
+      ;;
+    --profile)
+      profile="${2:-}"
+      shift 2
+      ;;
+    --profile=*)
+      profile="${1#*=}"
       shift
       ;;
     -h|--help)
@@ -19,6 +28,9 @@ Usage: rebuild.sh [options]
 
 Options:
   --clean, -c      Purge Neovim plugin cache and reinstall fresh from lockfile
+  --profile NAME   work (default) or home. "home" adds personal VPN, sync and
+                   network tooling. Set manualProfile in flake.nix to make it
+                   permanent for this machine.
   -h, --help       Show this help message
 EOF
       exit 0
@@ -30,8 +42,18 @@ EOF
   esac
 done
 
+case "${profile}" in
+  work|home|"") ;;
+  *)
+    echo "Error: --profile must be 'work' or 'home', got '${profile}'." >&2
+    exit 1
+    ;;
+esac
+
 resolve_system_identity
 export DOTFILES_DIR="${DOTFILES_DIR:-${repo_dir}}"
+[[ -n "${profile}" ]] && export DOTFILES_PROFILE="${profile}"
+export DOTFILES_PROFILE="${DOTFILES_PROFILE:-}"
 
 flake="path:${repo_dir}#default"
 
@@ -54,6 +76,7 @@ if [[ -x /run/current-system/sw/bin/darwin-rebuild ]]; then
     "USER=${USER}" \
     "DARWIN_USER=${DARWIN_USER}" \
     "DOTFILES_DIR=${DOTFILES_DIR}" \
+    "DOTFILES_PROFILE=${DOTFILES_PROFILE}" \
     /run/current-system/sw/bin/darwin-rebuild switch --impure --flake "${flake}"
 else
   echo "==> Applying configuration via locked nix-darwin runner..."
@@ -62,6 +85,7 @@ else
     "USER=${USER}" \
     "DARWIN_USER=${DARWIN_USER}" \
     "DOTFILES_DIR=${DOTFILES_DIR}" \
+    "DOTFILES_PROFILE=${DOTFILES_PROFILE}" \
     "${nix_bin}" run --impure \
     "path:${repo_dir}#darwinConfigurations.default.config.system.build.darwin-rebuild" \
     -- switch --impure --flake "${flake}"

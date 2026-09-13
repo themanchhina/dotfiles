@@ -22,11 +22,14 @@
     }:
     let
       # -----------------------------------------------------------------------
-      # Single spot to explicitly configure username or repo path.
+      # Single spot to explicitly configure username, repo path, or profile.
       # Leave empty ("") to automatically fall back to the environment.
+      # Set manualProfile = "home" on a personal machine; "work" is the default
+      # so an unset value can never install personal VPN or sync tooling.
       # -----------------------------------------------------------------------
       manualUser = "";
       manualDotfilesDir = "";
+      manualProfile = "";
       # -----------------------------------------------------------------------
 
       envUser =
@@ -45,9 +48,11 @@
           "";
 
       envDotfiles = builtins.getEnv "DOTFILES_DIR";
+      envProfile = builtins.getEnv "DOTFILES_PROFILE";
 
       # Use manual override if set, otherwise fallback to env, otherwise fallback to "default" (for pure CI)
       username = if manualUser != "" then manualUser else if envUser != "" then envUser else "default";
+      profile = if manualProfile != "" then manualProfile else if envProfile != "" then envProfile else "work";
       system = "aarch64-darwin";
       homeDirectory = "/Users/${username}";
       dotfilesDirectory = if manualDotfilesDir != "" then manualDotfilesDir else if envDotfiles != "" then envDotfiles else "${homeDirectory}/code/daman/dotfiles";
@@ -57,6 +62,7 @@
           inherit
             dotfilesDirectory
             homeDirectory
+            profile
             system
             username
             ;

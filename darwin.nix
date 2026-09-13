@@ -1,6 +1,8 @@
 {
   homeDirectory,
+  lib,
   pkgs,
+  profile,
   system,
   username,
   ...
@@ -53,6 +55,8 @@
     masApps = {
       "Irvue" = 1039633667;
     };
+    # Network scanning, personal VPNs and media downloaders are gated behind the
+    # "home" profile: on a work machine they are policy problems, not tools.
     brews = [
       "awscli"
       "azure-cli"
@@ -69,7 +73,6 @@
       "mas"
       "maven"
       "mysql"
-      "nmap"
       "pnpm"
       "poppler"
       "qpdf"
@@ -79,28 +82,30 @@
       "uv"
       "watch"
       "whisper-cpp"
+      "zsh"
+    ] ++ lib.optionals (profile == "home") [
+      "nmap"
       "wireguard-tools"
       "yt-dlp"
-      "zsh"
     ];
     casks = [
       "antigravity"
       "antigravity-cli"
       "battery"
-      "cmux"
       "codex"
       "docker-desktop"
       "fluidvoice"
       "google-chrome"
-      "google-drive"
-      "openvpn-connect"
       "raycast"
       "slack"
-      "tailscale-app"
       "visual-studio-code"
       "wezterm"
       "windows-app"
       "zoom"
+    ] ++ lib.optionals (profile == "home") [
+      "google-drive"
+      "openvpn-connect"
+      "tailscale-app"
     ];
     onActivation = {
       autoUpdate = false;

@@ -7,9 +7,15 @@ source "${repo_dir}/scripts/lib/utils.sh"
 
 # Validate first: everything below mutates (moves ~/.config/nvim, installs Nix)
 # before rebuild.sh ever sees these arguments.
-for arg in "$@"; do
-  case "${arg}" in
+args=("$@")
+i=0
+while [[ ${i} -lt ${#args[@]} ]]; do
+  case "${args[${i}]}" in
     --clean|-c) ;;
+    --profile)
+      i=$((i + 1))   # consume the value token too
+      ;;
+    --profile=*) ;;
     -h|--help)
       cat << 'EOF'
 Usage: bootstrap.sh [options]
@@ -19,15 +25,17 @@ the configuration via rebuild.sh.
 
 Options:
   --clean, -c      Purge Neovim plugin cache and reinstall fresh from lockfile
+  --profile NAME   work (default) or home
   -h, --help       Show this help message
 EOF
       exit 0
       ;;
     *)
-      echo "Error: unknown option '${arg}'. See --help." >&2
+      echo "Error: unknown option '${args[${i}]}'. See --help." >&2
       exit 1
       ;;
   esac
+  i=$((i + 1))
 done
 
 echo "==> Validating system requirements..."
