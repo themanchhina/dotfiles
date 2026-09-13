@@ -7,7 +7,7 @@ vim.keymap.set("t", "<Esc><Esc>", "<C-\\><C-n>", { desc = "Enter Normal Mode" })
 vim.keymap.set("n", "<C-d>", "<C-d>zz", { desc = "Scroll Down and Center" })
 vim.keymap.set("n", "<C-u>", "<C-u>zz", { desc = "Scroll Up and Center" })
 
--- Copy on mouse-select. y ends Visual mode, so gv to reselect.
+-- Copy on mouse-select. "+y exits Visual, so the trailing <LeftRelease> acts as <LeftMouse> and parks the cursor there.
 vim.keymap.set("x", "<LeftRelease>", [["+y<LeftRelease>]], { desc = "Auto-copy mouse selection to clipboard" })
 
 -- Unified split shortcuts matching Herdr's mental model (v for vertical, - for horizontal)

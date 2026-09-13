@@ -1,8 +1,6 @@
-# Scoped, not global: outside these roots useConfigOnly fails the commit instead.
+# Scoped, not global: outside this root useConfigOnly fails the commit instead.
 [includeIf "gitdir:~/code/daman/"]
   path = ~/.config/git/personal.conf
-[includeIf "gitdir:~/code/daman/mldo-app/"]
-  path = ~/code/daman/mldo-app/git.conf
 [user]
   useConfigOnly = true
 [init]

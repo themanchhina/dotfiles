@@ -35,6 +35,7 @@ scripts/update.sh      intentionally update Nix inputs and Homebrew packages
 scripts/sync-brew.sh   audit installed Homebrew packages against darwin.nix (read-only)
 scripts/sync-remote.sh push terminal and editor config to a remote Linux host
 scripts/lib/           shared shell helpers, and the remote tool installer
+.github/workflows/     CI: evaluates both profiles, lints the shell scripts
 ```
 
 ## Daily changes
@@ -64,7 +65,7 @@ Homebrew upgrades are deliberately disabled during normal rebuilds so a settings
 
 The two scripts treat Neovim plugins oppositely, which is the point: `rebuild.sh` restores them to `config/nvim/lazy-lock.json`, while `update.sh` advances them and rewrites that lockfile in the working tree. Expect `update.sh` to leave the repo dirty.
 
-Both accept `--clean`, which purges `~/.local/share/nvim/{lazy,site}` and `~/.cache/nvim` before restoring. It deliberately leaves `~/.local/share/nvim/state` alone, since shada and undo history cannot be rebuilt from a lockfile.
+Both accept `--clean`, which purges `~/.local/share/nvim/{lazy,site}` and `~/.cache/nvim` before restoring. It deliberately leaves `~/.local/state/nvim` alone, since shada and undo history cannot be rebuilt from a lockfile.
 
 ## Profiles
 
@@ -84,7 +85,7 @@ Set `manualProfile = "home"` at the top of `flake.nix` to make it permanent for 
 ./scripts/sync-remote.sh devbox                 # work: leaves identity unset
 ```
 
-On a work host `personal.conf` is not copied at all, and any existing copy is removed. That matters because `config/git/config` also includes it for `gitdir:~/code/daman/`, so merely omitting the global include would still have applied the personal identity there. With the file absent both includes are no-ops, and `user.useConfigOnly` makes a commit fail until you set the right identity.
+On a work host `personal.conf` is not copied at all, and on a non-Darwin host any existing copy is removed. That matters because `config/git/config` also includes it for `gitdir:~/code/daman/`, so merely omitting the global include would still have applied the personal identity there. With the file absent that include is a no-op, and `user.useConfigOnly` makes a commit fail until you set the right identity.
 
 **Switching profile does not uninstall anything.** `homebrew.onActivation.cleanup` is `"none"`, so dropping a package from the list stops it being managed but leaves it on disk. To actually remove the personal set from a machine:
 
@@ -110,11 +111,11 @@ This means:
 
 ```sh
 ./scripts/sync-remote.sh india                          # sync configs only
-./scripts/sync-remote.sh india --install-tools          # also install CLI tools into ~/.local/bin
+./scripts/sync-remote.sh india --install-tools          # also install CLI tools into ~/.local/bin (-t)
 ./scripts/sync-remote.sh india --dry-run                # print what would change
 ```
 
-It syncs the Herdr, Neovim, Git and Zsh configuration, appends `PATH`, `EDITOR` and `TERM_PROGRAM` to the remote `~/.zshrc` / `~/.bashrc`, and reloads a running Herdr server. `--install-tools` fetches prebuilt binaries by `curl` with no sudo; it prefers the GLIBC 2.17 compatible Neovim build for older hosts, though its fallback is the standard release, which needs a newer glibc. `--clean` additionally purges the remote Neovim plugin cache.
+It syncs the Herdr, Neovim, Git and Zsh configuration, appends `PATH`, `EDITOR` and `TERM_PROGRAM` to the remote `~/.zshrc` / `~/.bashrc`, and reloads a running Herdr server. `--install-tools` fetches prebuilt binaries by `curl` with no sudo; it prefers the GLIBC 2.17 compatible Neovim build for older hosts, though its fallback is the standard release, which needs a newer glibc. The tree-sitter CLI is the exception: every prebuilt build needs glibc 2.28, so on an older host it falls back to a multi-minute `cargo install`, and is skipped with a warning when cargo is absent. `--clean` (or `-c`) additionally purges the remote Neovim plugin cache.
 
 It also removes `~/.oh-my-bash/log/update.lock` if present, and generates `~/.config/git/local.conf` on non-Darwin hosts, which clears the macOS credential helper and, under `--profile home` only, applies the personal Git identity. That file is owned by this script and is overwritten on every sync.
 
@@ -137,7 +138,7 @@ The tracked `settings.json` starts empty; VS Code owns it and its edits get vers
 
 ## Git identity
 
-The personal identity applies only inside `~/code/daman/`, and `user.useConfigOnly` is set. A repository outside those roots has no identity, so rather than silently attributing a commit to the personal address, git refuses.
+The personal identity applies only inside `~/code/daman/`, and `user.useConfigOnly` is set. A repository outside that root has no identity, so rather than silently attributing a commit to the personal address, git refuses.
 
 That refusal is not always graceful. `commit`, `commit --amend`, `merge --no-ff` and `tag -a` fail cleanly, but anything that commits mid-operation leaves state behind: `rebase` stops at a detached HEAD with a `.git/rebase-merge`, and `revert` and `cherry-pick` leave a dirty index. Recover with the matching `--abort`. Because `pull.rebase` is true a plain `git pull` on a diverged branch hits the rebase path, and because `rebase.autoStash` is also true it will have stashed your uncommitted work first: `git rebase --abort` restores it, but `--skip` or `--continue` will not, and `git stash list` does not show it.
 

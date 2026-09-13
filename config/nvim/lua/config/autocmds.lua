@@ -15,19 +15,9 @@ local function setup_scrollback_buffer(bufnr)
   vim.bo[bufnr].modifiable = true
   vim.bo[bufnr].readonly = false
 
-  -- Colorize ANSI escape codes synchronously
-  local rendered = false
-  if vim.g.baleia then
-    local ok = pcall(vim.g.baleia.once, bufnr)
-    if ok then rendered = true end
-  else
-    local ok, baleia = pcall(require, "baleia")
-    if ok and baleia then
-      local instance = baleia.setup({ line_starts_at = 1, async = false })
-      local render_ok = pcall(instance.once, bufnr)
-      if render_ok then rendered = true end
-    end
-  end
+  -- Colorize ANSI synchronously; if scrollback.lua's config failed, strip CSI below instead.
+  local baleia = vim.g.baleia
+  local rendered = baleia ~= nil and pcall(baleia.once, bufnr)
 
   -- baleia consumes only SGR/CSI; carriage returns and OSC/DCS survive it.
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)

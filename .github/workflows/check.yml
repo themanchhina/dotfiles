@@ -20,10 +20,9 @@ jobs:
         with:
           determinate: true
 
-      - name: Check flake evaluation
-        run: nix flake check --impure "path:." --no-build
-
-      # flake check skips darwinConfigurations; only an eval catches module errors.
+      # No `nix flake check`: it skips darwinConfigurations, so these evals are the
+      # only thing that catches module errors. Restore it if a checks/packages
+      # output is ever added, since nothing else would gate one.
       # Both profiles: the home lists in darwin.nix are otherwise never evaluated.
       - name: Evaluate darwin configuration
         run: |
