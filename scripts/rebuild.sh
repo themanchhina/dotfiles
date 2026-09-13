@@ -15,7 +15,8 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --profile)
-      profile="${2:-}"
+      [[ $# -ge 2 ]] || { echo "Error: --profile requires a value." >&2; exit 1; }
+      profile="$2"
       shift 2
       ;;
     --profile=*)
@@ -42,18 +43,15 @@ EOF
   esac
 done
 
-case "${profile}" in
-  work|home|"") ;;
-  *)
-    echo "Error: --profile must be 'work' or 'home', got '${profile}'." >&2
-    exit 1
-    ;;
-esac
+validate_profile "${profile}" || exit 1
 
 resolve_system_identity
-export DOTFILES_DIR="${DOTFILES_DIR:-${repo_dir}}"
-[[ -n "${profile}" ]] && export DOTFILES_PROFILE="${profile}"
-export DOTFILES_PROFILE="${DOTFILES_PROFILE:-}"
+# Unconditional: home.nix exports DOTFILES_DIR into every shell, so honouring an
+# inherited value would link another checkout's config into this build.
+export DOTFILES_DIR="${repo_dir}"
+export DOTFILES_PROFILE="${profile:-${DOTFILES_PROFILE:-}}"
+# An inherited value reaches root's Nix eval too, so validate after resolution.
+validate_profile "${DOTFILES_PROFILE}" || exit 1
 
 flake="path:${repo_dir}#default"
 

@@ -12,9 +12,13 @@ while [[ ${i} -lt ${#args[@]} ]]; do
   case "${args[${i}]}" in
     --clean|-c) ;;
     --profile)
-      i=$((i + 1))   # consume the value token too
+      i=$((i + 1))
+      [[ ${i} -lt ${#args[@]} ]] || { echo "Error: --profile requires a value." >&2; exit 1; }
+      validate_profile "${args[${i}]}" || exit 1
       ;;
-    --profile=*) ;;
+    --profile=*)
+      validate_profile "${args[${i}]#*=}" || exit 1
+      ;;
     -h|--help)
       cat << 'EOF'
 Usage: update.sh [options]

@@ -60,8 +60,8 @@ confirm_installed() {
 }
 
 # 1. Neovim (using glibc-2.17 compatible build from neovim-releases)
-if command -v nvim >/dev/null 2>&1 && nvim --version >/dev/null 2>&1; then
-  echo "     ✓ nvim: $(nvim --version | head -n1)"
+if command -v nvim >/dev/null 2>&1 && nvim --version </dev/null >/dev/null 2>&1; then
+  echo "     ✓ nvim: $(nvim --version </dev/null | head -n1)"
 else
   if command -v nvim >/dev/null 2>&1; then
     echo "     ⚠️  Existing nvim binary cannot execute (likely glibc version mismatch). Reinstalling with GLIBC 2.17+ build..."
@@ -79,8 +79,8 @@ else
 fi
 
 # 2. Herdr (static-pie linked binary)
-if command -v herdr >/dev/null 2>&1 && herdr --version >/dev/null 2>&1; then
-  echo "     ✓ herdr: $(herdr --version 2>/dev/null || echo 'installed')"
+if command -v herdr >/dev/null 2>&1 && herdr --version </dev/null >/dev/null 2>&1; then
+  echo "     ✓ herdr: $(herdr --version </dev/null 2>/dev/null || echo 'installed')"
 else
   echo "     -> Installing Herdr..."
   curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR="${HOME}/.local/bin" sh
@@ -88,8 +88,8 @@ else
 fi
 
 # 3. ripgrep (rg - statically linked musl)
-if command -v rg >/dev/null 2>&1 && rg --version >/dev/null 2>&1; then
-  echo "     ✓ rg: $(rg --version | head -n1)"
+if command -v rg >/dev/null 2>&1 && rg --version </dev/null >/dev/null 2>&1; then
+  echo "     ✓ rg: $(rg --version </dev/null | head -n1)"
 else
   echo "     -> Installing ripgrep (musl static)..."
   rg_tag="$(get_latest_github_tag "BurntSushi/ripgrep")"
@@ -105,8 +105,8 @@ else
 fi
 
 # 4. fd-find (fd - statically linked musl)
-if command -v fd >/dev/null 2>&1 && fd --version >/dev/null 2>&1; then
-  echo "     ✓ fd: $(fd --version | head -n1)"
+if command -v fd >/dev/null 2>&1 && fd --version </dev/null >/dev/null 2>&1; then
+  echo "     ✓ fd: $(fd --version </dev/null | head -n1)"
 else
   echo "     -> Installing fd (musl static)..."
   fd_tag="$(get_latest_github_tag "sharkdp/fd")"
@@ -121,8 +121,8 @@ else
 fi
 
 # 5. lazygit (static Go binary)
-if command -v lazygit >/dev/null 2>&1 && lazygit --version >/dev/null 2>&1; then
-  echo "     ✓ lazygit: $(lazygit --version | head -n1)"
+if command -v lazygit >/dev/null 2>&1 && lazygit --version </dev/null >/dev/null 2>&1; then
+  echo "     ✓ lazygit: $(lazygit --version </dev/null | head -n1)"
 else
   echo "     -> Installing lazygit..."
   lg_tag="$(get_latest_github_tag "jesseduffield/lazygit")"
@@ -138,8 +138,8 @@ else
 fi
 
 # 6. jq (statically linked binary)
-if command -v jq >/dev/null 2>&1 && jq --version >/dev/null 2>&1; then
-  echo "     ✓ jq: $(jq --version | head -n1)"
+if command -v jq >/dev/null 2>&1 && jq --version </dev/null >/dev/null 2>&1; then
+  echo "     ✓ jq: $(jq --version </dev/null | head -n1)"
 else
   echo "     -> Installing jq..."
   tmp_dir="$(mktemp -d)"
@@ -151,8 +151,8 @@ else
 fi
 
 # 7. fzf (static Go binary)
-if command -v fzf >/dev/null 2>&1 && fzf --version >/dev/null 2>&1; then
-  echo "     ✓ fzf: $(fzf --version | head -n1)"
+if command -v fzf >/dev/null 2>&1 && fzf --version </dev/null >/dev/null 2>&1; then
+  echo "     ✓ fzf: $(fzf --version </dev/null | head -n1)"
 else
   echo "     -> Installing fzf..."
   fzf_tag="$(get_latest_github_tag "junegunn/fzf")"
@@ -168,8 +168,8 @@ else
 fi
 
 # 8. uv (Python package manager & runner)
-if command -v uv >/dev/null 2>&1 && uv --version >/dev/null 2>&1; then
-  echo "     ✓ uv: $(uv --version | head -n1)"
+if command -v uv >/dev/null 2>&1 && uv --version </dev/null >/dev/null 2>&1; then
+  echo "     ✓ uv: $(uv --version </dev/null | head -n1)"
 else
   echo "     -> Installing uv..."
   curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="${HOME}/.local/bin" sh
@@ -177,8 +177,8 @@ else
 fi
 
 # 9. fnm (Fast Node Manager for Mason / LSPs)
-if (command -v fnm >/dev/null 2>&1 || [[ -x "${HOME}/.local/share/fnm/fnm" ]]) && fnm --version >/dev/null 2>&1; then
-  echo "     ✓ fnm: $(fnm --version 2>/dev/null || echo 'installed')"
+if (command -v fnm >/dev/null 2>&1 || [[ -x "${HOME}/.local/share/fnm/fnm" ]]) && fnm --version </dev/null >/dev/null 2>&1; then
+  echo "     ✓ fnm: $(fnm --version </dev/null 2>/dev/null || echo 'installed')"
 else
   echo "     -> Installing fnm..."
   curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell --install-dir "${HOME}/.local/share/fnm"
@@ -189,8 +189,8 @@ else
 fi
 
 # 10. tree-sitter CLI (required for Neovim 0.12 parser compilation)
-if command -v tree-sitter >/dev/null 2>&1 && tree-sitter --version >/dev/null 2>&1; then
-  echo "     ✓ tree-sitter: $(tree-sitter --version | head -n1)"
+if command -v tree-sitter >/dev/null 2>&1 && tree-sitter --version </dev/null >/dev/null 2>&1; then
+  echo "     ✓ tree-sitter: $(tree-sitter --version </dev/null | head -n1)"
 else
   echo "     -> Installing tree-sitter CLI..."
   ts_tag="$(get_latest_github_tag "tree-sitter/tree-sitter")"

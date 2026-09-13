@@ -1,6 +1,7 @@
 IgnoreUnknown UseKeychain
 
-# Per-host: globally, IdentitiesOnly also excludes agent keys. Above the Include.
+# Per-host: globally, IdentitiesOnly also excludes agent keys. Above the Include
+# for priority -- IdentityFile accumulates, so this is not exclusion.
 Host github.com themanchhina
   HostName github.com
   User git

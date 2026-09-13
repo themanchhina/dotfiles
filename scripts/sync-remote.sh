@@ -64,7 +64,8 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --profile)
-      profile="${2:-}"
+      [[ $# -ge 2 ]] || { echo "Error: --profile requires a value." >&2; exit 1; }
+      profile="$2"
       shift 2
       ;;
     --profile=*)
@@ -174,8 +175,12 @@ if [[ ${dry_run} -eq 1 ]]; then
   echo "     [dry-run] generate                     ${target_host}:~/.config/git/local.conf (overwrites)"
 else
   scp -q "${repo_dir}/config/git/config" "${target_host}:~/.gitconfig"
-  scp -q "${repo_dir}/config/git/personal.conf" "${target_host}:~/.config/git/personal.conf"
   scp -q "${repo_dir}/config/git/ignore" "${target_host}:~/.config/git/ignore"
+  # Only under home: config/git/config also includes it via gitdir:~/code/daman/,
+  # so shipping the file at all would apply the personal identity there.
+  if [[ "${profile}" == "home" ]]; then
+    scp -q "${repo_dir}/config/git/personal.conf" "${target_host}:~/.config/git/personal.conf"
+  fi
 
   # Empty `helper =` drops osxkeychain; the identity include is profile-gated.
   ssh -T "${target_host}" "bash -s -- ${profile}" << 'REMOTE_GIT'
@@ -187,6 +192,7 @@ else
         > ~/.config/git/local.conf
     else
       printf "[credential]\n\thelper =\n" > ~/.config/git/local.conf
+      rm -f ~/.config/git/personal.conf
     fi
 REMOTE_GIT
 fi

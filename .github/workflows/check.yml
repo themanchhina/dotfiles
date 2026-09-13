@@ -24,8 +24,22 @@ jobs:
         run: nix flake check --impure "path:." --no-build
 
       # flake check skips darwinConfigurations; only an eval catches module errors.
+      # Both profiles: the home lists in darwin.nix are otherwise never evaluated.
       - name: Evaluate darwin configuration
-        run: nix eval --impure --raw "path:.#darwinConfigurations.default.config.system.build.toplevel.drvPath"
+        run: |
+          for p in work home; do
+            echo "--- profile=$p"
+            DOTFILES_PROFILE="$p" nix eval --impure --raw \
+              "path:.#darwinConfigurations.default.config.system.build.toplevel.drvPath" >/dev/null
+          done
+
+      # mkOutOfStoreSymlink takes a string, so a renamed config/ file evaluates
+      # fine and only shows up as a dangling symlink in $HOME.
+      - name: Verify every managed link source exists
+        run: |
+          grep -o '= link "[^"]*"' home.nix | sed 's/.*link "//; s/"$//' | while read -r p; do
+            test -e "$p" || { echo "missing link source: $p"; exit 1; }
+          done
 
       - name: Validate shell scripts syntax
         run: for f in scripts/*.sh scripts/lib/*.sh; do bash -n "$f"; done

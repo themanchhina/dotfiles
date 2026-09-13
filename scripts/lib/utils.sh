@@ -25,6 +25,17 @@ find_nix_bin() {
   fi
 }
 
+# work|home only; empty means "fall back to the default".
+validate_profile() {
+  case "${1:-}" in
+    work|home|"") return 0 ;;
+    *)
+      echo "Error: profile must be 'work' or 'home', got '${1}'." >&2
+      return 1
+      ;;
+  esac
+}
+
 # Resolve the target user, exporting validated environment variables
 resolve_system_identity() {
   local resolved_user="${1:-${DARWIN_USER:-${SUDO_USER:-${USER:-$(id -un)}}}}"

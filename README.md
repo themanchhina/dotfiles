@@ -32,7 +32,7 @@ config/                application, Git, SSH, Neovim, and prompt configuration
 scripts/bootstrap.sh   first activation on a new Mac
 scripts/rebuild.sh     validate and apply the current configuration
 scripts/update.sh      intentionally update Nix inputs and Homebrew packages
-scripts/sync-brew.sh   audit and sync installed Homebrew packages with darwin.nix
+scripts/sync-brew.sh   audit installed Homebrew packages against darwin.nix (read-only)
 scripts/sync-remote.sh push terminal and editor config to a remote Linux host
 scripts/lib/           shared shell helpers, and the remote tool installer
 ```
@@ -50,7 +50,7 @@ Add software in one place:
 - Nix command-line packages: `home.packages` in `home.nix`
 - Homebrew taps, formulae, and casks: `homebrew` in `darwin.nix`
 
-If you install packages ad-hoc via `brew install` or `brew install --cask`, run the sync script to audit unmanaged packages and keep `darwin.nix` up to date:
+If you install packages ad-hoc via `brew install` or `brew install --cask`, run the audit. It only reports drift, in both directions; you edit `darwin.nix` yourself:
 
 ```sh
 ./scripts/sync-brew.sh
@@ -62,6 +62,10 @@ Homebrew upgrades are deliberately disabled during normal rebuilds so a settings
 ./scripts/update.sh
 ```
 
+The two scripts treat Neovim plugins oppositely, which is the point: `rebuild.sh` restores them to `config/nvim/lazy-lock.json`, while `update.sh` advances them and rewrites that lockfile in the working tree. Expect `update.sh` to leave the repo dirty.
+
+Both accept `--clean`, which purges `~/.local/share/nvim/{lazy,site}` and `~/.cache/nvim` before restoring. It deliberately leaves `~/.local/share/nvim/state` alone, since shada and undo history cannot be rebuilt from a lockfile.
+
 ## Profiles
 
 Software that is fine personally but a policy problem on a work machine is gated behind a profile. `work` is the default, so an unset value can never install personal VPN or sync tooling.
@@ -71,7 +75,7 @@ Software that is fine personally but a policy problem on a work machine is gated
 ./scripts/rebuild.sh                   # work: the shared set only
 ```
 
-Set `manualProfile = "home"` at the top of `flake.nix` to make it permanent for a machine, rather than remembering the flag. `home` adds `google-drive`, `openvpn-connect`, `tailscale-app`, `nmap`, `wireguard-tools` and `yt-dlp`.
+Set `manualProfile = "home"` at the top of `flake.nix` to make it permanent for a machine. Note it takes precedence, so `--profile work` then becomes a silent no-op; leave it empty if you want the flag to decide. `home` adds `google-drive`, `openvpn-connect`, `tailscale-app`, `nmap`, `wireguard-tools` and `yt-dlp`.
 
 `sync-remote.sh` takes the same flag, and it controls the remote Git identity:
 
@@ -80,7 +84,7 @@ Set `manualProfile = "home"` at the top of `flake.nix` to make it permanent for 
 ./scripts/sync-remote.sh devbox                 # work: leaves identity unset
 ```
 
-On a work host the personal identity is deliberately not applied. Combined with `user.useConfigOnly`, a commit there fails until you set the right identity, rather than silently attributing it to a personal address.
+On a work host `personal.conf` is not copied at all, and any existing copy is removed. That matters because `config/git/config` also includes it for `gitdir:~/code/daman/`, so merely omitting the global include would still have applied the personal identity there. With the file absent both includes are no-ops, and `user.useConfigOnly` makes a commit fail until you set the right identity.
 
 **Switching profile does not uninstall anything.** `homebrew.onActivation.cleanup` is `"none"`, so dropping a package from the list stops it being managed but leaves it on disk. To actually remove the personal set from a machine:
 
@@ -91,7 +95,7 @@ brew uninstall nmap wireguard-tools yt-dlp
 
 ## Managed links
 
-Home Manager declaratively manages all destination symlinks pointing to this repository (`mkOutOfStoreSymlink`).
+Every managed destination is declared in `home.nix` and symlinked with `mkOutOfStoreSymlink`. `config/raycast/` is deliberately not managed, since it is imported interactively. CI asserts that every declared link source exists.
 
 This means:
 - Edits to configuration files in `config/` (or via `~/.config/...`) apply immediately without requiring a Nix rebuild.
@@ -111,7 +115,7 @@ This means:
 
 It syncs the Herdr, Neovim, Git and Zsh configuration, appends `PATH`, `EDITOR` and `TERM_PROGRAM` to the remote `~/.zshrc` / `~/.bashrc`, and reloads a running Herdr server. `--install-tools` fetches prebuilt binaries by `curl` with no sudo; it prefers the GLIBC 2.17 compatible Neovim build for older hosts, though its fallback is the standard release, which needs a newer glibc. `--clean` additionally purges the remote Neovim plugin cache.
 
-It also generates `~/.config/git/local.conf` on non-Darwin hosts, which clears the macOS credential helper and applies the personal Git identity unconditionally. That file is owned by this script and is overwritten on every sync.
+It also removes `~/.oh-my-bash/log/update.lock` if present, and generates `~/.config/git/local.conf` on non-Darwin hosts, which clears the macOS credential helper and, under `--profile home` only, applies the personal Git identity. That file is owned by this script and is overwritten on every sync.
 
 ## Browsing remote files in VS Code
 
@@ -119,7 +123,7 @@ VS Code runs on the Mac and reaches the remotes with the `Kelvin.vscode-sshfs` e
 
 The cask and the extension are declared, and `settings.json` is symlinked from `config/vscode/settings.json` so the settings UI stays writable.
 
-Host definitions are deliberately **not** in this repo, which is public. They live in `~/.config/vscode-sshfs/*.json`, pointed at by `sshfs.configpaths`. Each file is a JSON array, comments allowed:
+The tracked `settings.json` starts empty; VS Code owns it and its edits get versioned. Set `sshfs.configpaths` to `~/.config/vscode-sshfs` once, as an **absolute** path, via the settings UI. Host definitions stay out of this repo because it is public and the SSH FS UI writes a password into a host config if you enter one. Each file there is a JSON array, comments allowed:
 
 ```jsonc
 // ~/.config/vscode-sshfs/india.json

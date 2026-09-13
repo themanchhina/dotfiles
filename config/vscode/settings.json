@@ -1,4 +1,5 @@
 {
-  // Public repo, so no private hosts here. configpaths must be absolute.
-  "sshfs.configpaths": ["/Users/daman/.config/vscode-sshfs"]
+  // VS Code owns this file; it is tracked so its edits are versioned. Set
+  // sshfs.configpaths to ~/.config/vscode-sshfs (absolute) via the settings UI:
+  // host configs can hold a password, and this repo is public.
 }

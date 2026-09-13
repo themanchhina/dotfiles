@@ -40,8 +40,7 @@
     home.file.".ssh/config".source = link "config/ssh/config";
     home.file.".p10k.zsh".source = link "config/zsh/p10k.zsh";
     home.file.".zsh_aliases".source = link "config/zsh/zsh_aliases";
-    home.file."Library/Application Support/Code/User/settings.json".source =
-      link "config/vscode/settings.json";
+    home.file."Library/Application Support/Code/User/settings.json".source = link "config/vscode/settings.json";
 
   # Casks install the app, not its extensions. Never fatal: brew may not have run.
   home.activation.vscodeExtensions = lib.hm.dag.entryAfter [ "writeBoundary" ] ''

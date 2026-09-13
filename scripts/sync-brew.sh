@@ -2,6 +2,43 @@
 set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
+# shellcheck disable=SC1091
+source "${repo_dir}/scripts/lib/utils.sh"
+
+# The profile decides which packages are declared, so auditing without it reports
+# the gated ones as drift on a home machine.
+profile="${DOTFILES_PROFILE:-}"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --profile)
+      [[ $# -ge 2 ]] || { echo "Error: --profile requires a value." >&2; exit 1; }
+      profile="$2"
+      shift 2
+      ;;
+    --profile=*)
+      profile="${1#*=}"
+      shift
+      ;;
+    -h|--help)
+      cat << 'EOF'
+Usage: sync-brew.sh [options]
+
+Reports drift between installed Homebrew packages and darwin.nix. Read-only.
+
+Options:
+  --profile NAME   work (default) or home; must match how you rebuild
+  -h, --help       Show this help message
+EOF
+      exit 0
+      ;;
+    *)
+      echo "Error: unknown option '$1'. See --help." >&2
+      exit 1
+      ;;
+  esac
+done
+validate_profile "${profile}" || exit 1
+export DOTFILES_PROFILE="${profile}"
 
 if ! command -v brew >/dev/null 2>&1 && [[ ! -x /opt/homebrew/bin/brew ]]; then
   echo "Error: Homebrew is not installed." >&2
@@ -12,10 +49,8 @@ command -v jq >/dev/null 2>&1 || { echo "Error: jq is not installed." >&2; exit 
 
 brew_bin="$(command -v brew || echo "/opt/homebrew/bin/brew")"
 
-echo "==> Auditing Homebrew packages against darwin.nix..."
+echo "==> Auditing Homebrew packages against darwin.nix (profile: ${profile:-work})..."
 
-# shellcheck disable=SC1091
-source "${repo_dir}/scripts/lib/utils.sh"
 source_nix_env
 nix_bin="$(find_nix_bin "${repo_dir}")"
 

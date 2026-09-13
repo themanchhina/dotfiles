@@ -49,7 +49,12 @@
 
       # Use manual override if set, otherwise fallback to env, otherwise fallback to "default" (for pure CI)
       username = if manualUser != "" then manualUser else if envUser != "" then envUser else "default";
-      profile = if manualProfile != "" then manualProfile else if envProfile != "" then envProfile else "work";
+      rawProfile = if manualProfile != "" then manualProfile else if envProfile != "" then envProfile else "work";
+      profile =
+        if builtins.elem rawProfile [ "work" "home" ] then
+          rawProfile
+        else
+          throw "profile must be \"work\" or \"home\", got \"${rawProfile}\"";
       system = "aarch64-darwin";
       homeDirectory = "/Users/${username}";
       dotfilesDirectory = if manualDotfilesDir != "" then manualDotfilesDir else if envDotfiles != "" then envDotfiles else "${homeDirectory}/code/daman/dotfiles";

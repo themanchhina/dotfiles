@@ -19,10 +19,6 @@
 [core]
   excludesFile = ~/.config/git/ignore
 
-# Last so it wins. Written by sync-remote.sh on Linux hosts; absence is fine.
-[include]
-  path = ~/.config/git/local.conf
-
 [alias]
   # Worktree operations
   wt = worktree
@@ -42,4 +38,8 @@
   lg = log --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
   # Must name a base: bare `--merged` means merged-into-HEAD, which eats develop.
   # -D because -d re-checks merged-into-HEAD and refuses from a feature branch.
-  prune-merged = "!sh -c 'case \"$0\" in -*) echo \"prune-merged takes no arguments\" >&2; exit 2;; esac; [ $# -eq 0 ] || { echo \"prune-merged takes no arguments\" >&2; exit 2; }; detected=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed \"s@^origin/@@\"); base=\"\"; for c in \"$detected\" main master; do if [ -n \"$c\" ] && git rev-parse --verify --quiet \"refs/heads/$c\" >/dev/null; then base=\"$c\"; break; fi; done; if [ -z \"$base\" ]; then echo \"prune-merged: no local main or master branch found\" >&2; exit 1; fi; cur=$(git branch --show-current); branches=$(git branch --merged \"refs/heads/$base\" --format=\"%(refname)\" | sed -n \"s@^refs/heads/@@p\" | grep -vxF -e \"$base\" -e main -e master -e \"${cur:-__no_branch__}\"); if [ -n \"$branches\" ]; then printf \"%s\\n\" \"$branches\" | while IFS= read -r b; do git branch -D \"$b\"; done; else echo \"No branches merged into $base to prune.\"; fi'"
+  prune-merged = "!sh -c 'case \"$0\" in sh) ;; *) echo \"prune-merged takes no arguments\" >&2; exit 2;; esac; [ $# -eq 0 ] || { echo \"prune-merged takes no arguments\" >&2; exit 2; }; detected=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD 2>/dev/null | sed \"s@^origin/@@\"); base=\"\"; for c in \"$detected\" main master; do if [ -n \"$c\" ] && git rev-parse --verify --quiet \"refs/heads/$c\" >/dev/null; then base=\"$c\"; break; fi; done; if [ -z \"$base\" ]; then echo \"prune-merged: no local main or master branch found\" >&2; exit 1; fi; cur=$(git branch --show-current); branches=$(git branch --merged \"refs/heads/$base\" --format=\"%(refname)\" | sed -n \"s@^refs/heads/@@p\" | grep -vxF -e \"$base\" -e main -e master -e \"${cur:-__no_branch__}\"); if [ -n \"$branches\" ]; then printf \"%s\\n\" \"$branches\" | while IFS= read -r b; do git branch -D \"$b\"; done; else echo \"No branches merged into $base to prune.\"; fi'"
+
+# Last so it wins. Written by sync-remote.sh on Linux hosts; absence is fine.
+[include]
+  path = ~/.config/git/local.conf
