@@ -55,8 +55,7 @@
     masApps = {
       "Irvue" = 1039633667;
     };
-    # Network scanning, personal VPNs and media downloaders are gated behind the
-    # "home" profile: on a work machine they are policy problems, not tools.
+    # Personal VPN, sync and scanning tools are gated behind the "home" profile.
     brews = [
       "awscli"
       "azure-cli"

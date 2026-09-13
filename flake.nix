@@ -22,10 +22,7 @@
     }:
     let
       # -----------------------------------------------------------------------
-      # Single spot to explicitly configure username, repo path, or profile.
-      # Leave empty ("") to automatically fall back to the environment.
-      # Set manualProfile = "home" on a personal machine; "work" is the default
-      # so an unset value can never install personal VPN or sync tooling.
+      # Empty ("") falls back to the environment; profile defaults to "work".
       # -----------------------------------------------------------------------
       manualUser = "";
       manualDotfilesDir = "";

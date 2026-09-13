@@ -1,9 +1,4 @@
 {
-  // Symlinked from config/vscode/settings.json, so VS Code's settings UI can
-  // still write here. Anything it writes lands in the repo working tree.
-  //
-  // Private SSH FS hosts do NOT belong in this file: it is public. They live in
-  // ~/.config/vscode-sshfs/*.json, which is outside the repo. sshfs.configpaths
-  // must be absolute -- a relative path or a ~ is silently ignored.
+  // Public repo, so no private hosts here. configpaths must be absolute.
   "sshfs.configpaths": ["/Users/daman/.config/vscode-sshfs"]
 }

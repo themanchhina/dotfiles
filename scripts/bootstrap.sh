@@ -5,8 +5,7 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # shellcheck disable=SC1091
 source "${repo_dir}/scripts/lib/utils.sh"
 
-# Validate first: everything below mutates (moves ~/.config/nvim, installs Nix)
-# before rebuild.sh ever sees these arguments.
+# Validate first: everything below mutates before rebuild.sh sees these args.
 args=("$@")
 i=0
 while [[ ${i} -lt ${#args[@]} ]]; do

@@ -57,8 +57,7 @@ run_nvim_headless() {
 restore_nvim_plugins() {
   local clean_mode="${1:-0}"
 
-  # Before the purge: without nvim there is nothing to restore with, so deleting
-  # the plugin tree would just lose it.
+  # Check before the purge: without nvim, deleting the tree just loses it.
   if ! command -v nvim >/dev/null 2>&1; then
     if [[ "${clean_mode}" -eq 1 ]]; then
       echo "    Warning: --clean requested but nvim is not installed; skipping purge." >&2

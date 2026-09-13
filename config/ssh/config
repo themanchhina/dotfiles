@@ -21,9 +21,7 @@ Host amarpreet
   IdentityFile ~/.ssh/amarpreet
   IdentitiesOnly yes
 
-# Include local uncommitted configurations (machine-specific or private servers).
-# The bare `Host *` is required: an Include inherits the enclosing block, so
-# without it this sits inside `Host amarpreet` and applies to nothing else.
+# The bare `Host *` is required: an Include inherits the enclosing block.
 Host *
 Include ~/.ssh/config.local
 

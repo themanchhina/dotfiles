@@ -39,8 +39,7 @@ local function copy_with_osc52(reg)
     end)
 
     -- 3. System pasteboard fallback if running in a session where it works.
-    -- No trailing newline is added: for linewise, Neovim already passes a final
-    -- empty element, so `text` ends in one and appending a second doubles it.
+    -- Do not append a newline: linewise already carries a final empty element.
     if copy_cmd then
       pcall(function()
         vim.fn.system(copy_cmd, text)

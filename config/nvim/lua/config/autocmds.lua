@@ -29,8 +29,7 @@ local function setup_scrollback_buffer(bufnr)
     end
   end
 
-  -- Always strip what baleia leaves behind: it only consumes SGR/CSI, so carriage
-  -- returns and OSC/DCS strings survive into the buffer it renders.
+  -- baleia consumes only SGR/CSI; carriage returns and OSC/DCS survive it.
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local modified = false
   for i, line in ipairs(lines) do
@@ -40,7 +39,6 @@ local function setup_scrollback_buffer(bufnr)
       :gsub("\27[P_%^X][^\27]*\27\\", "") -- DCS / APC / SOS / PM strings
       :gsub("\r", "")
     if not rendered then
-      -- No baleia: also drop the colour sequences it would have consumed.
       clean = clean
         :gsub("\27%[[0-9:;<=>?]*[ -/]*[@-~]", "") -- CSI, incl. colon subparams and private introducers
         :gsub("\27", "") -- lone escapes left by truncated sequences
@@ -87,9 +85,7 @@ end
 
 local scrollback_group = vim.api.nvim_create_augroup("HerdrScrollback", { clear = true })
 
--- The conversion is one-way, so restrict it to Herdr's own temp dump.
--- Both sides need realpath: on macOS $TMPDIR is /var/... while the bufname
--- arrives as /private/var/..., so a plain prefix match never fires.
+-- realpath both sides: macOS $TMPDIR is /var/... but bufnames are /private/var/...
 local function canonical(path)
   return vim.fs.normalize(vim.uv.fs_realpath(path) or path)
 end

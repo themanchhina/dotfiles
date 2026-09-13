@@ -177,9 +177,7 @@ else
   scp -q "${repo_dir}/config/git/personal.conf" "${target_host}:~/.config/git/personal.conf"
   scp -q "${repo_dir}/config/git/ignore" "${target_host}:~/.config/git/ignore"
 
-  # Empty `helper =` drops osxkeychain, which does not exist off macOS. The
-  # identity include is profile-gated: on a work host, imposing the personal
-  # address would author every commit there as a personal identity.
+  # Empty `helper =` drops osxkeychain; the identity include is profile-gated.
   ssh -T "${target_host}" "bash -s -- ${profile}" << 'REMOTE_GIT'
     remote_profile="$1"
     [ "$(uname -s)" = "Darwin" ] && exit 0

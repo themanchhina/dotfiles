@@ -43,8 +43,7 @@
     home.file."Library/Application Support/Code/User/settings.json".source =
       link "config/vscode/settings.json";
 
-  # Casks install the app, not its extensions. Idempotent: re-running prints
-  # "already installed". Never fatal, since Homebrew may not have run yet.
+  # Casks install the app, not its extensions. Never fatal: brew may not have run.
   home.activation.vscodeExtensions = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
     code_bin=/opt/homebrew/bin/code
     if [ -x "$code_bin" ]; then
@@ -54,8 +53,7 @@
       done
     fi
 
-    # sshfs.configpaths is an absolute path, so it cannot follow $HOME. Warn
-    # loudly rather than let SSH FS silently find no hosts.
+    # configpaths must be absolute, so it cannot follow $HOME. Fail loudly.
     sshfs_dir="${homeDirectory}/.config/vscode-sshfs"
     mkdir -p "$sshfs_dir"
     if ! grep -qF "$sshfs_dir" "${dotfilesDirectory}/config/vscode/settings.json" 2>/dev/null; then

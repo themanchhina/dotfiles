@@ -5,10 +5,8 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # shellcheck disable=SC1091
 source "${repo_dir}/scripts/lib/utils.sh"
 
-# Validate before mutating anything: these are forwarded to rebuild.sh, and by
-# the time it rejects an option brew and flake.lock have already moved. --help
-# must exit here too, or rebuild.sh prints help and skips the switch while this
-# script still upgrades everything and reports success.
+# Validate first, including --help: by the time rebuild.sh rejects an option,
+# brew and flake.lock have already moved.
 args=("$@")
 i=0
 while [[ ${i} -lt ${#args[@]} ]]; do
