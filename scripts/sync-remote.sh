@@ -15,6 +15,8 @@ Syncs essential configuration files to a remote machine over SSH:
          credential helper; applies the personal identity only with
          --profile home, so a work host keeps its own identity)
   - Zsh: ~/.zsh_aliases (agent shortcuts gi/co/cc, docker wrappers, editor aliases)
+  - Agent: ~/.claude/AGENTS.md (standing coding-agent instructions; skipped when the
+           remote already symlinks it into a checkout, so live edits keep working)
   - Shell: sets PATH (~/.local/bin), EDITOR=nvim, TERM_PROGRAM=WezTerm & sources
            aliases in remote ~/.zshrc / ~/.bashrc
   - Herdr Server: automatically reloads herdr server config on the remote machine
@@ -106,7 +108,7 @@ echo "==> Preparing remote directories on '${target_host}'..."
 if [[ ${dry_run} -eq 0 ]]; then
   ssh -T "${target_host}" '
     rm -f ~/.oh-my-bash/log/update.lock 2>/dev/null || true
-    mkdir -p ~/.config/herdr ~/.config/git ~/.config/nvim ~/.local/bin ~/.local/share
+    mkdir -p ~/.config/herdr ~/.config/git ~/.config/nvim ~/.local/bin ~/.local/share ~/.claude
   ' </dev/null
 fi
 
@@ -237,7 +239,20 @@ else
 REMOTE_SCRIPT
 fi
 
-# 6. Reload running Herdr server if present
+# 6. Agent instructions
+echo "  -> Agent: config/agent/AGENTS.md"
+if [[ ${dry_run} -eq 1 ]]; then
+  echo "     [dry-run] scp ${repo_dir}/config/agent/AGENTS.md ${target_host}:~/.claude/AGENTS.md"
+  echo "     [dry-run] skipped instead if the remote path is already a symlink"
+# A symlink means the remote has its own checkout and edits are live there; copying
+# over it would silently freeze the file at this sync.
+elif ssh -T "${target_host}" '[ -L ~/.claude/AGENTS.md ]' </dev/null; then
+  echo "     remote symlinks it into a checkout, left alone"
+else
+  scp -q "${repo_dir}/config/agent/AGENTS.md" "${target_host}:~/.claude/AGENTS.md"
+fi
+
+# 7. Reload running Herdr server if present
 echo "  -> Checking for running Herdr server on '${target_host}'..."
 if [[ ${dry_run} -eq 1 ]]; then
   echo "     [dry-run] herdr server reload-config"
