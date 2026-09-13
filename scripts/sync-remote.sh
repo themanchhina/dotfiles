@@ -205,8 +205,7 @@ if [[ ${dry_run} -eq 1 ]]; then
   echo "     [dry-run] append PATH (~/.local/bin, ~/.local/share/fnm), EDITOR=nvim, TERM_PROGRAM=WezTerm and zsh_aliases sourcing to remote ~/.zshrc / ~/.bashrc"
 else
   ssh -T "${target_host}" 'bash -s' << 'REMOTE_SCRIPT'
-    # Markers are script-owned sentinels: matching the payload instead caught
-    # unrelated pre-existing exports and suppressed the append.
+    # Script-owned sentinels: matching the payload caught foreign exports.
     ensure_line() {
       local rc="$1" marker="$2" block="$3"
       grep -qF "dotfiles-managed:${marker}" "${rc}" 2>/dev/null && return 0

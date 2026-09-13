@@ -1,8 +1,6 @@
 IgnoreUnknown UseKeychain
 
-# Per-host, not global: globally IdentitiesOnly also excludes every agent key,
-# leaving unlisted hosts with no identity at all. Above the Include so a local
-# override cannot disable the key isolation these three GitHub accounts need.
+# Per-host: globally, IdentitiesOnly also excludes agent keys. Above the Include.
 Host github.com themanchhina
   HostName github.com
   User git

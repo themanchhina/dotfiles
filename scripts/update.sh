@@ -5,8 +5,7 @@ repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
 # shellcheck disable=SC1091
 source "${repo_dir}/scripts/lib/utils.sh"
 
-# Validate first, including --help: by the time rebuild.sh rejects an option,
-# brew and flake.lock have already moved.
+# Validate first, incl. --help: rebuild.sh rejects too late, after brew moved.
 args=("$@")
 i=0
 while [[ ${i} -lt ${#args[@]} ]]; do

@@ -48,8 +48,7 @@ get_latest_github_tag() {
 }
 
 # Assign inside `if` or set -e aborts here; empty output means a 0-byte binary bash ran as an empty script.
-# </dev/null is load-bearing: sync-remote.sh feeds this script to bash on stdin,
-# so a probe that reads stdin swallows the rest of the installer and exits 0.
+# </dev/null is load-bearing: this script arrives on stdin, so a probe can eat it.
 confirm_installed() {
   local name="$1"; shift
   local out
