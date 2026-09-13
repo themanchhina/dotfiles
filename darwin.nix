@@ -91,6 +91,7 @@
       "antigravity"
       "antigravity-cli"
       "battery"
+      "claude-code"
       "codex"
       "docker-desktop"
       "fluidvoice"
