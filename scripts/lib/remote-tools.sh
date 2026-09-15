@@ -8,14 +8,23 @@ set -euo pipefail
 export DISABLE_AUTO_UPDATE="true"
 export OSH_DISABLE_AUTO_UPDATE="true"
 export PATH="${HOME}/.local/bin:${HOME}/.local/share/fnm:${PATH}"
-mkdir -p "${HOME}/.local/bin" "${HOME}/.local/share"
 
 os="$(uname -s)"
 raw_arch="$(uname -m)"
 
 if [[ "${os}" != "Linux" ]]; then
-  echo "     ⚠️  Note: Remote tool installer currently targets Linux hosts (detected: ${os})."
+  echo "Error: Remote tool installation requires Linux (detected: ${os})." >&2
+  exit 1
 fi
+
+for tool in curl tar gzip git unzip sha256sum; do
+  command -v "${tool}" >/dev/null 2>&1 || { echo "Error: Install ${tool} on the remote host first." >&2; exit 1; }
+done
+if ! command -v cc >/dev/null 2>&1 && ! command -v gcc >/dev/null 2>&1 && ! command -v clang >/dev/null 2>&1; then
+  echo "Error: A C compiler is required to build Neovim treesitter parsers." >&2
+  exit 1
+fi
+mkdir -p "${HOME}/.local/bin" "${HOME}/.local/share"
 
 # Four naming schemes, one per publisher: musl triples, GOARCH, nvim/lazygit assets, tree-sitter assets.
 case "${raw_arch}" in
@@ -66,7 +75,43 @@ confirm_installed() {
     echo "     ✓ ${name} installed: ${out%%$'\n'*}"
   else
     echo "     ✗ ${name} installed but not runnable: ${out%%$'\n'*}" >&2
+    return 1
   fi
+}
+
+nvim_ready() {
+  local bin="${1:-nvim}" version
+  version="$("${bin}" --version </dev/null 2>/dev/null)" || return 1
+  [[ "${version}" == NVIM\ v* ]] || return 1
+  "${bin}" --headless --clean -i NONE -n \
+    -c 'lua if vim.fn.has("nvim-0.11.2") ~= 1 or not jit or vim.v.errmsg ~= "" then vim.cmd("cquit") end' \
+    -c qa </dev/null >/dev/null 2>&1
+}
+
+# Keep the distribution separate from ~/.local/share/nvim user/plugin data.
+# A fresh tree prevents removed runtime files surviving upgrades or downgrades.
+install_nvim_archive() {
+  (
+    mkdir -p "${HOME}/.local/opt" || exit 1
+    stage="$(mktemp -d "${HOME}/.local/opt/nvim.XXXXXX")" || exit 1
+    trap 'rm -rf "$stage"' EXIT
+    curl -fsSL "$1" | tar -xz -C "$stage" --strip-components=1 || exit 1
+    nvim_ready "$stage/bin/nvim" || exit 1
+    rm -rf "${HOME}/.local/opt/nvim" || exit 1
+    mv "$stage" "${HOME}/.local/opt/nvim" || exit 1
+    ln -sfn "${HOME}/.local/opt/nvim/bin/nvim" "${HOME}/.local/bin/nvim.new" &&
+      mv -f "${HOME}/.local/bin/nvim.new" "${HOME}/.local/bin/nvim"
+  )
+}
+
+tree_sitter_ready() {
+  local bin="${1:-tree-sitter}" out version major minor patch
+  out="$("${bin}" --version </dev/null 2>/dev/null)" || return 1
+  version="${out#tree-sitter }"
+  version="${version%% *}"
+  IFS=. read -r major minor patch <<< "${version}"
+  [[ "${major}" =~ ^[0-9]+$ && "${minor}" =~ ^[0-9]+$ && "${patch}" =~ ^[0-9]+$ ]] || return 1
+  (( major > 0 || minor > 26 || (minor == 26 && patch >= 1) ))
 }
 
 # Extract one named binary out of a .tar.gz release into ~/.local/bin.
@@ -80,27 +125,20 @@ install_tarball_bin() {
   confirm_installed "${name}" "${HOME}/.local/bin/${name}" --version
 }
 
-# 1. Neovim (using glibc-2.17 compatible build from neovim-releases)
-if ! report_installed nvim; then
+# 1. Neovim: prefer upstream stable, then try the older-glibc build of the same tag.
+if ! nvim_ready; then
   if command -v nvim >/dev/null 2>&1; then
-    echo "     ⚠️  Existing nvim binary cannot execute (likely glibc version mismatch). Reinstalling with GLIBC 2.17+ build..."
+    echo "     ⚠️  Existing Neovim does not meet the >= 0.11.2 with LuaJIT requirement. Reinstalling..."
   fi
-  echo "     -> Installing Neovim (${release_arch}) with GLIBC 2.17+ compatibility..."
-  nvim_tag="$(latest_github_tag neovim/neovim-releases v0.12.5)"
-  if ! curl -fsSL "https://github.com/neovim/neovim-releases/releases/download/${nvim_tag}/nvim-linux-${release_arch}.tar.gz" \
-    | tar -xz -C "${HOME}/.local" --strip-components=1 2>/dev/null; then
-    echo "     -> Fallback: Downloading standard Neovim release..."
-    curl -fsSL "https://github.com/neovim/neovim/releases/latest/download/nvim-linux-${release_arch}.tar.gz" \
-      | tar -xz -C "${HOME}/.local" --strip-components=1
+  echo "     -> Installing upstream stable Neovim (${release_arch})..."
+  nvim_tag="$(latest_github_tag neovim/neovim v0.12.5)"
+  if ! install_nvim_archive "https://github.com/neovim/neovim/releases/download/${nvim_tag}/nvim-linux-${release_arch}.tar.gz"; then
+    echo "     -> Fallback: Downloading the older-glibc compatibility build..."
+    install_nvim_archive "https://github.com/neovim/neovim-releases/releases/download/${nvim_tag}/nvim-linux-${release_arch}.tar.gz"
   fi
+  hash -r
+  nvim_ready || { echo "Error: Installed Neovim does not meet the version and LuaJIT requirements." >&2; exit 1; }
   confirm_installed nvim "${HOME}/.local/bin/nvim" --version
-fi
-
-# 2. Herdr (static-pie linked binary)
-if ! report_installed herdr; then
-  echo "     -> Installing Herdr..."
-  curl -fsSL https://herdr.dev/install.sh | HERDR_INSTALL_DIR="${HOME}/.local/bin" sh
-  confirm_installed herdr "${HOME}/.local/bin/herdr" --version
 fi
 
 # 3. ripgrep (statically linked musl)
@@ -138,6 +176,27 @@ if ! report_installed jq; then
   confirm_installed jq "${HOME}/.local/bin/jq" --version
 fi
 
+# Match the initiating Mac's Herdr version. Downloading the verified Linux asset
+# is much faster than uploading a native binary over an interactive SSH link.
+herdr_version="${1:-}"
+[[ "${herdr_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.]+)?$ ]] || { echo "Error: Invalid or missing Herdr version." >&2; exit 1; }
+if [[ "$(herdr --version </dev/null 2>/dev/null || true)" != "herdr ${herdr_version}" ]]; then
+  echo "     -> Installing Herdr ${herdr_version} to match the Mac..."
+  (
+    tmp_dir="$(mktemp -d)"
+    trap 'rm -rf "$tmp_dir"' EXIT
+    asset="herdr-linux-${musl_arch}"
+    digest="$(curl -fsSL "https://api.github.com/repos/herdrdev/herdr/releases/tags/v${herdr_version}" \
+      | jq -er --arg asset "${asset}" '.assets[] | select(.name == $asset) | .digest')"
+    [[ "${digest}" =~ ^sha256:[a-f0-9]{64}$ ]] || { echo "Error: Missing Herdr asset checksum." >&2; exit 1; }
+    curl -fsSL "https://github.com/herdrdev/herdr/releases/download/v${herdr_version}/${asset}" -o "${tmp_dir}/herdr"
+    printf '%s  %s\n' "${digest#sha256:}" "${tmp_dir}/herdr" | sha256sum -c -
+    chmod +x "${tmp_dir}/herdr"
+    [[ "$("${tmp_dir}/herdr" --version </dev/null)" == "herdr ${herdr_version}" ]] || { echo "Error: Herdr version mismatch." >&2; exit 1; }
+    mv "${tmp_dir}/herdr" "${HOME}/.local/bin/herdr"
+  )
+fi
+
 # 7. fzf (static Go binary)
 if ! report_installed fzf; then
   echo "     -> Installing fzf..."
@@ -163,10 +222,9 @@ if ! report_installed fnm; then
   confirm_installed fnm "${HOME}/.local/share/fnm/fnm" --version
 fi
 
-# 10. tree-sitter CLI. nvim-treesitter's main branch compiles parsers with it and
-# wants >= 0.26.1. Every published build needs glibc >= 2.28, so on older hosts
-# (Amazon Linux 2 is 2.26) the only route is a source build.
-if ! report_installed tree-sitter; then
+# 10. tree-sitter CLI. Runtime-check the prebuilt because current release assets
+# can require a newer glibc than the remote host provides.
+if ! tree_sitter_ready; then
   echo "     -> Installing tree-sitter CLI..."
   ts_tag="$(latest_github_tag tree-sitter/tree-sitter v0.27.0)"
   tmp_dir="$(mktemp -d)"
@@ -176,7 +234,7 @@ if ! report_installed tree-sitter; then
     chmod +x "${tmp_dir}/tree-sitter"
     # Verify before installing: a binary that cannot run is worse than none, because
     # command -v finds it and Neovim then fails with a bare linker error.
-    if "${tmp_dir}/tree-sitter" --version </dev/null >/dev/null 2>&1; then
+    if tree_sitter_ready "${tmp_dir}/tree-sitter"; then
       mv "${tmp_dir}/tree-sitter" "${HOME}/.local/bin/tree-sitter"
       ts_ok=1
     fi
@@ -185,22 +243,29 @@ if ! report_installed tree-sitter; then
 
   if [[ "${ts_ok}" -eq 0 ]]; then
     rm -f "${HOME}/.local/bin/tree-sitter"
-    if command -v cargo >/dev/null 2>&1; then
-      echo "     ⚠️  Prebuilt tree-sitter needs glibc >= 2.28; building from source (several minutes)..."
-      ts_log="${TMPDIR:-/tmp}/tree-sitter-build.log"
-      if cargo install --locked tree-sitter-cli >"${ts_log}" 2>&1; then
-        ln -sf "${HOME}/.cargo/bin/tree-sitter" "${HOME}/.local/bin/tree-sitter"
-        ts_ok=1
-      else
-        echo "     ✗ cargo install tree-sitter-cli failed. Log: ${ts_log}" >&2
+    echo "     -> Prebuilt tree-sitter cannot run; building it for the local libc..."
+    (
+      build_dir="$(mktemp -d)"
+      trap 'rm -rf "$build_dir"' EXIT
+      export CARGO_TARGET_DIR="${build_dir}/target"
+      cargo_bin="$(command -v cargo || true)"
+      if [[ -z "${cargo_bin}" ]]; then
+        export CARGO_HOME="${build_dir}/cargo" RUSTUP_HOME="${build_dir}/rustup"
+        curl --proto '=https' --tlsv1.2 -fsSL https://sh.rustup.rs \
+          | sh -s -- -y --profile minimal --no-modify-path
+        cargo_bin="${CARGO_HOME}/bin/cargo"
       fi
-    else
-      echo "     ✗ tree-sitter unavailable: prebuilt needs glibc >= 2.28 and cargo is absent." >&2
-      echo "       Neovim treesitter parser compilation will not work on this host." >&2
-    fi
+      "${cargo_bin}" install --locked --version "${ts_tag#v}" --root "${build_dir}/install" tree-sitter-cli </dev/null
+      cp "${build_dir}/install/bin/tree-sitter" "${HOME}/.local/bin/tree-sitter"
+    )
+    ts_ok=1
   fi
 
-  [[ "${ts_ok}" -eq 1 ]] && confirm_installed tree-sitter "${HOME}/.local/bin/tree-sitter" --version
+  [[ "${ts_ok}" -eq 1 ]] && tree_sitter_ready "${HOME}/.local/bin/tree-sitter"
 fi
+
+tree_sitter_ready || { echo "Error: tree-sitter >= 0.26.1 is required." >&2; exit 1; }
+
+nvim_ready || { echo "Error: Neovim must be >= 0.11.2 and use LuaJIT." >&2; exit 1; }
 
 echo "     ✅ Remote CLI tools check complete!"

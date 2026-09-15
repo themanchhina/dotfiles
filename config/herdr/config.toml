@@ -58,7 +58,13 @@ cycle_pane_next = "prefix+k"
 
 # Split panes
 split_vertical = "prefix+v"
-split_horizontal = ["prefix+-", "prefix+s"]
+split_horizontal = "prefix+-"
+
+# Directional pane focus; Ctrl+h/j/k/l remains available to Neovim.
+focus_pane_left = "ctrl+alt+h"
+focus_pane_down = "ctrl+alt+j"
+focus_pane_up = "ctrl+alt+k"
+focus_pane_right = "ctrl+alt+l"
 
 # Zoom focused pane (toggle full-screen)
 zoom = "prefix+z"
@@ -95,8 +101,8 @@ toggle_sidebar = "prefix+b"
 # Open pane scrollback in $EDITOR (Neovim)
 edit_scrollback = "prefix+e"
 
-# Image clipboard paste for remote agents (prefixed so Ctrl-v remains available for Neovim visual block)
-remote_image_paste = "prefix+ctrl+v"
+# Image clipboard paste for remote agents (Ctrl-v remains available for Neovim visual block)
+remote_image_paste = "ctrl+alt+v"
 
 # Session-modal Lazygit popup (floating modal overlay)
 [[keys.command]]
@@ -106,5 +112,4 @@ command = "lazygit"
 width = "85%"
 height = "85%"
 description = "Lazygit Popup"
-
 

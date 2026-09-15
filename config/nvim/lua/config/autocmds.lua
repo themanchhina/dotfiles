@@ -8,6 +8,7 @@
 local function setup_scrollback_buffer(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   if not vim.api.nvim_buf_is_valid(bufnr) then return end
+  if vim.bo[bufnr].modified then return end
   if vim.b[bufnr].scrollback_setup_done then return end
   vim.b[bufnr].scrollback_setup_done = true
 
@@ -65,7 +66,7 @@ local function setup_scrollback_buffer(bufnr)
   end
 
   -- Instant exit with 'q'
-  vim.keymap.set("n", "q", "<cmd>close!<cr>", {
+  vim.keymap.set("n", "q", "<cmd>quit!<cr>", {
     buffer = bufnr,
     silent = true,
     nowait = true,
@@ -88,19 +89,25 @@ local function in_tmpdir(path)
   return false
 end
 
+local function maybe_setup_scrollback(bufnr)
+  local path = vim.api.nvim_buf_get_name(bufnr)
+  if vim.fn.fnamemodify(path, ":t"):match("^herdr%-scrollback%-.*%.txt$") and in_tmpdir(path) then
+    vim.schedule(function()
+      if vim.api.nvim_buf_is_valid(bufnr) then setup_scrollback_buffer(bufnr) end
+    end)
+  end
+end
+
 vim.api.nvim_create_autocmd("BufReadPost", {
   group = scrollback_group,
   pattern = "*herdr-scrollback-*.txt",
   callback = function(ev)
-    if not in_tmpdir(vim.api.nvim_buf_get_name(ev.buf)) then return end
-    -- Run on next tick to ensure buffer is fully loaded
-    vim.schedule(function()
-      if vim.api.nvim_buf_is_valid(ev.buf) then
-        setup_scrollback_buffer(ev.buf)
-      end
-    end)
+    maybe_setup_scrollback(ev.buf)
   end,
 })
+
+-- This file loads on VeryLazy, after BufReadPost for the startup buffer.
+maybe_setup_scrollback(vim.api.nvim_get_current_buf())
 
 -- User command to manually apply scrollback formatting to current buffer
 vim.api.nvim_create_user_command("ScrollbackMode", function()

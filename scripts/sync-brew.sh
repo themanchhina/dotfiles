@@ -50,13 +50,13 @@ echo "==> Auditing Homebrew packages against darwin.nix (profile: ${profile:-wor
 source_nix_env
 nix_bin="$(find_nix_bin "${repo_dir}")"
 
-# Get installed top-level formulae, all formulae, casks, and taps.
-# `leaves` prints full names and `list` short ones, so strip the tap from both.
-installed_leaves="$("${brew_bin}" leaves 2>/dev/null | sed 's|.*/||' | sort || true)"
-all_installed_brews="$("${brew_bin}" list --formula 2>/dev/null | sort || true)"
-installed_casks="$("${brew_bin}" list --cask 2>/dev/null | sort || true)"
+# Explicitly installed formulae may also be dependencies, so `leaves` misses them.
+installed_json="$("${brew_bin}" info --json=v2 --installed)"
+requested_brews="$(jq -r '.formulae[] | select(any(.installed[]; .installed_on_request == true)) | .full_name' <<< "${installed_json}" | sort)"
+all_installed_brews="$(jq -r '.formulae[].full_name' <<< "${installed_json}" | sort)"
+installed_casks="$(jq -r '.casks[].full_token' <<< "${installed_json}" | sort)"
 # homebrew/* are Homebrew's own and are never declared, so they are not drift.
-installed_taps="$("${brew_bin}" tap 2>/dev/null | grep -v '^homebrew/' | sort || true)"
+installed_taps="$("${brew_bin}" tap | sed '/^homebrew\//d' | sort)"
 
 # One eval, projected to just the names: each `nix eval` is a full module-system
 # evaluation, and --impure gets no eval cache.
@@ -64,14 +64,14 @@ declared_json="$("${nix_bin}" eval --impure --json \
   "path:${repo_dir}#darwinConfigurations.default.config.homebrew" \
   --apply 'h: { brews = map (b: b.name) h.brews; casks = map (c: c.name) h.casks; taps = map (t: t.name) h.taps; masApps = builtins.attrValues h.masApps; }')"
 
-# sub() strips the tap prefix: `brew list` reports short names only.
-declared_brews="$(jq -r '.brews[] | sub(".*/"; "")' <<< "${declared_json}" | sort)"
+# Full names retain tap identity on both sides of the comparison.
+declared_brews="$(jq -r '.brews[]' <<< "${declared_json}" | sort)"
 declared_casks="$(jq -r '.casks[]' <<< "${declared_json}" | sort)"
 declared_taps="$(jq -r '.taps[]' <<< "${declared_json}" | sort)"
 declared_mas="$(jq -r '.masApps[]' <<< "${declared_json}" | sort)"
 
 # Find top-level items installed on this Mac but missing in darwin.nix
-missing_in_nix_brews="$(comm -23 <(echo "${installed_leaves}") <(echo "${declared_brews}") | grep -v '^$' || true)"
+missing_in_nix_brews="$(comm -23 <(echo "${requested_brews}") <(echo "${declared_brews}") | grep -v '^$' || true)"
 missing_in_nix_casks="$(comm -23 <(echo "${installed_casks}") <(echo "${declared_casks}") | grep -v '^$' || true)"
 missing_in_nix_taps="$(comm -23 <(echo "${installed_taps}") <(echo "${declared_taps}") | grep -v '^$' || true)"
 

@@ -2,8 +2,6 @@
 set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd -P)"
-# shellcheck disable=SC1091
-source "${repo_dir}/scripts/lib/utils.sh" # validate_profile only; the rest act on this Mac
 
 usage() {
   cat << EOF
@@ -12,12 +10,8 @@ Usage: $(basename "$0") <ssh-host> [options]
 Syncs essential configuration files to a remote machine over SSH:
   - Herdr: ~/.config/herdr/config.toml (theme, status symbols, 10MB scrollback, terminal notifications)
   - Neovim: ~/.config/nvim/ (init.lua, lazy-lock.json, plugins, keymaps)
-  - Git: ~/.gitconfig, ~/.config/git/{ignore,personal.conf}, and a generated
-         ~/.config/git/local.conf (owned by this script: clears the macOS
-         credential helper; applies the personal identity only with
-         --profile home, so a work host keeps its own identity)
   - Zsh: ~/.zsh_aliases (agent shortcuts gi/co/cc, docker wrappers, editor aliases)
-  - Agent: ~/.claude/AGENTS.md (standing coding-agent instructions; skipped when the
+  - Agent: ~/.claude/CLAUDE.md (standing coding-agent instructions; skipped when the
            remote already symlinks it into a checkout, so live edits keep working)
   - Shell: sets PATH (~/.local/bin), EDITOR=nvim, TERM_PROGRAM=WezTerm & sources
            aliases in remote ~/.zshrc / ~/.bashrc
@@ -29,9 +23,6 @@ Arguments:
 Options:
   -t, --install-tools, --tools
                        Install missing CLI tools (nvim, herdr, rg, fd, lazygit, jq, fzf, uv, fnm, tree-sitter) via curl into ~/.local/bin
-  --profile NAME       work (default) or home. "home" applies the personal Git
-                       identity on the remote; "work" leaves identity unset so
-                       commits fail loudly rather than using a personal address
   --clean, -c          Purge remote Neovim plugin cache and reinstall fresh from lockfile
   --dry-run            Show what would be copied without making changes
   -h, --help           Show this help message
@@ -53,11 +44,14 @@ fi
 
 target_host="$1"
 shift
+[[ -n "${target_host}" && "${target_host}" != -* && "${target_host}" != *[[:space:]]* ]] || {
+  echo "Error: Invalid SSH host: '${target_host}'." >&2
+  exit 1
+}
 
 install_tools=0
 dry_run=0
 clean=0
-profile="work"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -t|--install-tools|--tools)
@@ -66,15 +60,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --clean|-c)
       clean=1
-      shift
-      ;;
-    --profile)
-      [[ $# -ge 2 ]] || { echo "Error: --profile requires a value." >&2; exit 1; }
-      profile="$2"
-      shift 2
-      ;;
-    --profile=*)
-      profile="${1#*=}"
       shift
       ;;
     --dry-run)
@@ -91,26 +76,34 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Empty is a valid "use the default" elsewhere, but this script has no default-fill.
-[[ -n "${profile}" ]] || { echo "Error: --profile requires a value." >&2; exit 1; }
-validate_profile "${profile}" || exit 1
-
-echo "==> Testing SSH connection to '${target_host}'..."
-if ! ssh -q -T -o BatchMode=yes -o ConnectTimeout=8 "${target_host}" exit 2>/dev/null; then
-  if ! ssh -T -o ConnectTimeout=8 "${target_host}" exit; then
-    echo "Error: Could not connect to '${target_host}' over SSH." >&2
+herdr_version=""
+if [[ ${install_tools} -eq 1 && ${dry_run} -eq 0 ]]; then
+  herdr_version="$(herdr --version </dev/null 2>/dev/null | awk 'NR == 1 { print $2 }' || true)"
+  [[ "${herdr_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.]+)?$ ]] || {
+    echo "Error: Local Herdr returned an invalid version: '${herdr_version}'." >&2
     exit 1
+  }
+fi
+
+if [[ ${dry_run} -eq 0 ]]; then
+  echo "==> Testing SSH connection to '${target_host}'..."
+  if ! ssh -q -T -o BatchMode=yes -o ConnectTimeout=8 "${target_host}" exit 2>/dev/null; then
+    if ! ssh -T -o ConnectTimeout=8 "${target_host}" exit; then
+      echo "Error: Could not connect to '${target_host}' over SSH." >&2
+      exit 1
+    fi
   fi
 fi
 
 echo "==> Preparing remote directories on '${target_host}'..."
 if [[ ${dry_run} -eq 1 ]]; then
   echo "     [dry-run] remote: rm -f ~/.oh-my-bash/log/update.lock"
-  echo "     [dry-run] remote: mkdir -p ~/.config/herdr ~/.config/git ~/.config/nvim ~/.local/bin ~/.local/share ~/.claude"
+  echo "     [dry-run] remote: mkdir -p ~/.config/herdr ~/.config/nvim ~/.local/bin ~/.local/share ~/.claude"
 else
   ssh -T "${target_host}" '
+    set -eu
     rm -f ~/.oh-my-bash/log/update.lock 2>/dev/null || true
-    mkdir -p ~/.config/herdr ~/.config/git ~/.config/nvim ~/.local/bin ~/.local/share ~/.claude
+    mkdir -p ~/.config/herdr ~/.config/nvim ~/.local/bin ~/.local/share ~/.claude
   ' </dev/null
 fi
 
@@ -121,8 +114,13 @@ if [[ ${install_tools} -eq 1 ]]; then
   if [[ ${dry_run} -eq 1 ]]; then
     echo "     [dry-run] ssh -T ${target_host} 'bash -s' < ${repo_dir}/scripts/lib/remote-tools.sh"
   else
-    ssh -T "${target_host}" 'bash -s' < "${repo_dir}/scripts/lib/remote-tools.sh"
+    ssh -T "${target_host}" "bash -s -- '${herdr_version}'" < "${repo_dir}/scripts/lib/remote-tools.sh"
   fi
+fi
+
+if [[ ${dry_run} -eq 0 ]] && ! ssh -T "${target_host}" 'export PATH="$HOME/.local/bin:$PATH"; nvim --version | grep -q "^NVIM v" && nvim --headless --clean -i NONE -n -c '\''lua if vim.fn.has("nvim-0.11.2") ~= 1 or not jit or vim.v.errmsg ~= "" then vim.cmd("cquit") end'\'' -c qa' </dev/null; then
+  echo "Error: Remote Neovim needs >= 0.11.2, LuaJIT and a working stock runtime. Re-run with --install-tools." >&2
+  exit 1
 fi
 
 echo "==> Syncing configs to '${target_host}'..."
@@ -145,67 +143,19 @@ if [[ ${dry_run} -eq 1 ]]; then
   if [[ ${clean} -eq 1 ]]; then
     echo "     [dry-run] remote: rm -rf ~/.local/share/nvim/lazy ~/.local/share/nvim/site ~/.cache/nvim"
   fi
-  echo "     [dry-run] remote: nvim --headless '+Lazy! restore' '+qa'"
 else
   ssh -T "${target_host}" "rm -rf ~/.config/nvim.tmp" </dev/null
   scp -q -r "${repo_dir}/config/nvim" "${target_host}:~/.config/nvim.tmp"
   ssh -T "${target_host}" "rm -rf ~/.config/nvim && mv ~/.config/nvim.tmp ~/.config/nvim" </dev/null
 
-  # Restore lockfile commits headlessly (and purge cache if --clean)
-  ssh -T "${target_host}" "bash -s -- ${clean}" << 'REMOTE_NVIM_SYNC'
-    export PATH="${HOME}/.local/bin:${PATH}"
-    clean_mode="$1"
-    if [[ "${clean_mode}" == "1" ]]; then
-      # Not ~/.local/state/nvim: that is shada and undo, which restore cannot rebuild.
-      echo "     ==> Purging remote plugin caches (~/.local/share/nvim/lazy, site, ~/.cache/nvim)..."
-      rm -rf ~/.local/share/nvim/lazy ~/.local/share/nvim/site ~/.cache/nvim
-    fi
-    if command -v nvim >/dev/null 2>&1; then
-      echo "     ==> Restoring Neovim plugins headlessly to match lockfile..."
-      log="${TMPDIR:-/tmp}/dotfiles-nvim.log"
-      if ! nvim --headless "+Lazy! restore" "+qa" </dev/null >"${log}" 2>&1; then
-        echo "     Warning: remote nvim +Lazy! restore exited non-zero. Log on remote: ${log}" >&2
-      fi
-    fi
-REMOTE_NVIM_SYNC
 fi
 
-# 3. Git configs
-echo "  -> Git: .gitconfig, personal.conf, ignore"
-if [[ ${dry_run} -eq 1 ]]; then
-  echo "     [dry-run] scp config/git/config      -> ${target_host}:~/.gitconfig  (overwrites)"
-  echo "     [dry-run] scp config/git/personal.conf -> ${target_host}:~/.config/git/personal.conf"
-  echo "     [dry-run] scp config/git/ignore      -> ${target_host}:~/.config/git/ignore"
-  echo "     [dry-run] generate                     ${target_host}:~/.config/git/local.conf (overwrites)"
-else
-  scp -q "${repo_dir}/config/git/config" "${target_host}:~/.gitconfig"
-  scp -q "${repo_dir}/config/git/ignore" "${target_host}:~/.config/git/ignore"
-  # Only under home: config/git/config also includes it via gitdir:~/code/daman/,
-  # so shipping the file at all would apply the personal identity there.
-  if [[ "${profile}" == "home" ]]; then
-    scp -q "${repo_dir}/config/git/personal.conf" "${target_host}:~/.config/git/personal.conf"
-  fi
-
-  # Empty `helper =` drops osxkeychain; the identity include is profile-gated.
-  ssh -T "${target_host}" "bash -s -- ${profile}" << 'REMOTE_GIT'
-    remote_profile="$1"
-    [ "$(uname -s)" = "Darwin" ] && exit 0
-    mkdir -p ~/.config/git
-    if [ "${remote_profile}" = "home" ]; then
-      printf "[credential]\n\thelper =\n[include]\n\tpath = ~/.config/git/personal.conf\n" \
-        > ~/.config/git/local.conf
-    else
-      printf "[credential]\n\thelper =\n" > ~/.config/git/local.conf
-      rm -f ~/.config/git/personal.conf
-    fi
-REMOTE_GIT
-fi
-
-# 4. Zsh aliases
+# 3. Zsh aliases
 echo "  -> Zsh: .zsh_aliases"
 if [[ ${dry_run} -eq 1 ]]; then
   echo "     [dry-run] scp ${repo_dir}/config/zsh/zsh_aliases ${target_host}:~/.zsh_aliases"
 else
+  ssh -T "${target_host}" '[ ! -f ~/.zsh_aliases ] || [ -e ~/.zsh_aliases.bak ] || cp -p ~/.zsh_aliases ~/.zsh_aliases.bak' </dev/null
   scp -q "${repo_dir}/config/zsh/zsh_aliases" "${target_host}:~/.zsh_aliases"
 fi
 
@@ -215,6 +165,7 @@ if [[ ${dry_run} -eq 1 ]]; then
   echo "     [dry-run] append PATH (~/.local/bin, ~/.local/share/fnm), EDITOR=nvim, TERM_PROGRAM=WezTerm and zsh_aliases sourcing to remote ~/.zshrc / ~/.bashrc"
 else
   ssh -T "${target_host}" 'bash -s' << 'REMOTE_SCRIPT'
+    set -euo pipefail
     # Script-owned sentinels: matching the payload caught foreign exports.
     ensure_line() {
       local rc="$1" marker="$2" block="$3"
@@ -224,11 +175,16 @@ else
 
     setup_rc() {
       local rc="$1"
+      [[ ! -s "${rc}" || -e "${rc}.bak" ]] || cp -p "${rc}" "${rc}.bak"
       ensure_line "${rc}" path 'export PATH="$HOME/.local/bin:$HOME/.local/share/fnm:$PATH"\n'
       # herdr's edit_scrollback execs $EDITOR; unset, it falls back to vi.
-      ensure_line "${rc}" editor 'export EDITOR="${EDITOR:-nvim}"\nexport VISUAL="${VISUAL:-$EDITOR}"\n'
+      ensure_line "${rc}" editor-v2 'export EDITOR=nvim\nexport VISUAL=nvim\n'
       ensure_line "${rc}" term-program 'export TERM_PROGRAM="${TERM_PROGRAM:-WezTerm}"\n'
       ensure_line "${rc}" aliases '[[ -f ~/.zsh_aliases ]] && source ~/.zsh_aliases\n'
+      case "${rc}" in
+        *.zshrc) ensure_line "${rc}" fnm 'command -v fnm >/dev/null 2>&1 && eval "$(fnm env --use-on-cd --shell zsh)"\n' ;;
+        *.bashrc) ensure_line "${rc}" fnm 'command -v fnm >/dev/null 2>&1 && eval "$(fnm env --use-on-cd --shell bash)"\n' ;;
+      esac
     }
 
     if [[ -f ~/.zshrc || ! -f ~/.bashrc ]]; then
@@ -241,17 +197,40 @@ else
 REMOTE_SCRIPT
 fi
 
+# Shell/runtime setup must precede plugin restoration so Mason and plugin hooks see it.
+if [[ ${dry_run} -eq 1 ]]; then
+  echo "     [dry-run] remote: nvim --headless '+lua require(\"config.sync\")(\"restore\")' '+qa'"
+else
+  ssh -T "${target_host}" "bash -s -- ${clean}" << 'REMOTE_NVIM_SYNC'
+    set -euo pipefail
+    export PATH="${HOME}/.local/bin:${HOME}/.local/share/fnm:${PATH}"
+    if command -v fnm >/dev/null 2>&1; then
+      eval "$(fnm env --shell bash </dev/null)"
+    fi
+    if [[ "$1" == "1" ]]; then
+      rm -rf ~/.local/share/nvim/lazy ~/.local/share/nvim/site ~/.cache/nvim
+    fi
+    log="$(mktemp "${TMPDIR:-/tmp}/dotfiles-nvim.XXXXXX")"
+    if nvim --headless '+lua require("config.sync")("restore")' '+qa' </dev/null >"${log}" 2>&1; then
+      rm -f "${log}"
+    else
+      echo "Error: Remote Neovim plugin restore failed. Log: ${log}" >&2
+      exit 1
+    fi
+REMOTE_NVIM_SYNC
+fi
+
 # 6. Agent instructions
 echo "  -> Agent: config/agent/AGENTS.md"
 if [[ ${dry_run} -eq 1 ]]; then
-  echo "     [dry-run] scp ${repo_dir}/config/agent/AGENTS.md ${target_host}:~/.claude/AGENTS.md"
+  echo "     [dry-run] scp ${repo_dir}/config/agent/AGENTS.md ${target_host}:~/.claude/CLAUDE.md"
   echo "     [dry-run] skipped instead if the remote path is already a symlink"
 # A symlink means the remote has its own checkout and edits are live there; copying
 # over it would silently freeze the file at this sync.
-elif ssh -T "${target_host}" '[ -L ~/.claude/AGENTS.md ]' </dev/null; then
+elif ssh -T "${target_host}" '[ -L ~/.claude/CLAUDE.md ]' </dev/null; then
   echo "     remote symlinks it into a checkout, left alone"
 else
-  scp -q "${repo_dir}/config/agent/AGENTS.md" "${target_host}:~/.claude/AGENTS.md"
+  scp -q "${repo_dir}/config/agent/AGENTS.md" "${target_host}:~/.claude/CLAUDE.md"
 fi
 
 # 7. Reload running Herdr server if present

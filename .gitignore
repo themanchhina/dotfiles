@@ -1,5 +1,6 @@
 .DS_Store
 result
+__pycache__/
 
 # Machine-specific files are never tracked: this repo is public, so the naming
 # convention does the work instead of an enumeration that goes stale.

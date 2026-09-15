@@ -99,31 +99,32 @@ resolve_system_identity() {
   export DARWIN_USER="${resolved_user}"
 }
 
-# Warns but never fails: a plugin problem must not abort a good system switch.
+# Retain diagnostics and fail the overall command when editor setup is incomplete.
 run_nvim_headless() {
   local label="$1"
   local cmd="$2"
-  local log="${TMPDIR:-/tmp}/dotfiles-nvim.log"
-
-  if ! command -v nvim >/dev/null 2>&1; then
-    return 0
-  fi
+  local log
+  log="$(mktemp "${TMPDIR:-/tmp}/dotfiles-nvim.XXXXXX")" || return 1
 
   echo "==> ${label}"
-  if ! nvim --headless "${cmd}" "+qa" >"${log}" 2>&1; then
-    echo "    Warning: nvim ${cmd} exited non-zero. Log: ${log}" >&2
+  if ! nvim --headless "${cmd}" "+qa" </dev/null >"${log}" 2>&1; then
+    echo "Error: Neovim plugin setup failed. Log: ${log}" >&2
+    return 1
   fi
+  rm -f "${log}"
 }
 
 # Check before the purge: without nvim, deleting the tree just loses it.
 nvim_pass() {
   local clean_mode="$1" label="$2" cmd="$3"
 
+  # A first activation does not refresh the calling shell's PATH.
   if ! command -v nvim >/dev/null 2>&1; then
-    if [[ "${clean_mode}" -eq 1 ]]; then
-      echo "    Warning: --clean requested but nvim is not installed; skipping purge." >&2
-    fi
-    return 0
+    export PATH="${PATH}:/etc/profiles/per-user/${DARWIN_USER:-${USER}}/bin"
+  fi
+  if ! command -v nvim >/dev/null 2>&1; then
+    echo "Error: Neovim is unavailable; editor setup was not completed." >&2
+    return 1
   fi
 
   if [[ "${clean_mode}" -eq 1 ]]; then
@@ -137,10 +138,10 @@ nvim_pass() {
 
 # Pin plugins to lazy-lock.json
 restore_nvim_plugins() {
-  nvim_pass "${1:-0}" "Restoring Neovim plugins and treesitter parsers..." "+Lazy! restore"
+  nvim_pass "${1:-0}" "Restoring Neovim plugins and treesitter parsers..." "+lua require('config.sync')('restore')"
 }
 
 # Advance plugins and rewrite lazy-lock.json
 sync_nvim_plugins() {
-  nvim_pass "${1:-0}" "Syncing Neovim plugins and treesitter..." "+Lazy! sync"
+  nvim_pass "${1:-0}" "Syncing Neovim plugins and treesitter..." "+lua require('config.sync')('sync')"
 }

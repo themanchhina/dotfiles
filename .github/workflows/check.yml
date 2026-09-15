@@ -46,3 +46,8 @@ jobs:
       # The macOS runner images ship no shellcheck; nix is already installed above.
       - name: Lint shell scripts
         run: nix run nixpkgs/nixos-26.05#shellcheck -- --severity=warning scripts/*.sh scripts/lib/*.sh
+
+      - name: Run regression checks
+        run: |
+          nix shell --inputs-from . nixpkgs#neovim nixpkgs#jq --command \
+            python3 -m unittest discover -s tests -v

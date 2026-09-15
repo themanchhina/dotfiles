@@ -36,7 +36,7 @@ in
   xdg.configFile."wezterm/wezterm.lua".source = link "config/wezterm/wezterm.lua";
   xdg.configFile."nvim".source = link "config/nvim";
 
-  home.file.".claude/AGENTS.md".source = link "config/agent/AGENTS.md";
+  home.file.".claude/CLAUDE.md".source = link "config/agent/AGENTS.md";
   home.file.".gitconfig".source = link "config/git/config";
   home.file.".ssh/config".source = link "config/ssh/config";
   home.file.".p10k.zsh".source = link "config/zsh/p10k.zsh";

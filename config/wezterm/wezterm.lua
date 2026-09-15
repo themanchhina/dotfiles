@@ -29,20 +29,34 @@ config.cursor_blink_rate = 500
 -- Shift+Drag bypasses remote mouse reporting for native WezTerm selection.
 config.bypass_mouse_reporting_modifiers = "SHIFT"
 
+-- Cmd-click opens links even when the app owns mouse reporting.
+config.mouse_bindings = {
+  {
+    event = { Down = { streak = 1, button = "Left" } },
+    mods = "CMD",
+    mouse_reporting = true,
+    action = act.Nop,
+  },
+  {
+    event = { Up = { streak = 1, button = "Left" } },
+    mods = "CMD",
+    mouse_reporting = true,
+    action = act.OpenLinkAtMouseCursor,
+  },
+}
+
 -- Unsent outside Herdr, where \x02D would delete to end of line in Neovim.
 local herdr_hosts = {
   herdr = true,
-  ssh = true,
-  mosh = true,
-  ["mosh-client"] = true,
+  ["herdr-client"] = true,
 }
 
-local function herdr(suffix)
+local function herdr(suffix, prefix)
   return wezterm.action_callback(function(window, pane)
     local proc = pane:get_foreground_process_name() or ""
     local name = proc:match("([^/]+)$") or proc
     if herdr_hosts[name] then
-      window:perform_action(act.SendString("\x02" .. suffix), pane)
+      window:perform_action(act.SendString((prefix or "\x02") .. suffix), pane)
     else
       window:toast_notification("WezTerm", "Not a Herdr session -- shortcut ignored", nil, 2000)
     end
@@ -83,11 +97,11 @@ config.keys = {
     mods = "CMD",
     action = act.PasteFrom("Clipboard"),
   },
-  -- Cmd + Shift + v sends prefix + Ctrl+V (\x02\x16) to Herdr (triggering remote image clipboard bridge)
+  -- Cmd + Shift + v sends Alt + Ctrl+V (\x1b\x16), Herdr's direct remote-image shortcut.
   {
     key = "v",
     mods = "CMD|SHIFT",
-    action = herdr("\x16"),
+    action = herdr("\x16", "\x1b"),
   },
   -- Shift + Enter for newline across all harnesses (Claude, Codex, Agy)
   -- Sends Esc + Enter (\x1b\r), universally parsed as Alt/Option+Enter (newline without submit)

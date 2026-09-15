@@ -34,6 +34,8 @@ scripts/rebuild.sh     validate and apply the current configuration
 scripts/update.sh      intentionally update Nix inputs and Homebrew packages
 scripts/sync-brew.sh   audit installed Homebrew packages against darwin.nix (read-only)
 scripts/sync-remote.sh push terminal and editor config to a remote Linux host
+scripts/remote-files.sh transfer Finder clipboard files or explicit paths over SCP
+scripts/remote-preview.sh open remote Neovim Markdown previews in the Mac browser
 scripts/lib/           shared shell helpers, and the remote tool installer
 .github/workflows/     CI: evaluates both profiles, lints the shell scripts
 ```
@@ -78,14 +80,7 @@ Software that is fine personally but a policy problem on a work machine is gated
 
 Set `manualProfile = "home"` at the top of `flake.nix` to make it permanent for a machine. Note it takes precedence, so `--profile work` then becomes a silent no-op; leave it empty if you want the flag to decide. `home` adds the casks `google-drive`, `openvpn-connect`, `tailscale-app`, `windows-app` and `zoom`; the formulae `nmap`, `wireguard-tools` and `yt-dlp`; and the Mac App Store app `Irvue`.
 
-`sync-remote.sh` takes the same flag, and it controls the remote Git identity:
-
-```sh
-./scripts/sync-remote.sh india --profile home   # applies the personal identity
-./scripts/sync-remote.sh devbox                 # work: leaves identity unset
-```
-
-On a work host `personal.conf` is not copied at all, and on a non-Darwin host any existing copy is removed. That matters because `config/git/config` also includes it for `gitdir:~/code/daman/`, so merely omitting the global include would still have applied the personal identity there. With the file absent that include is a no-op, and `user.useConfigOnly` makes a commit fail until you set the right identity.
+Profiles apply to Mac packages. Remote Git identities, credential helpers and configuration belong to each host; `sync-remote.sh` does not modify them and no longer takes `--profile`.
 
 **Switching profile does not uninstall anything.** `homebrew.onActivation.cleanup` is `"none"`, so dropping a package from the list stops it being managed but leaves it on disk. To actually remove the personal set from a machine:
 
@@ -107,17 +102,71 @@ This means:
 
 ## Remote hosts
 
-`scripts/sync-remote.sh` pushes the terminal, editor and Git configuration to a remote Linux box over SSH. It is one-way and overwrites the remote copies. Note it deletes the remote `~/.config/nvim` outright with no backup, unlike the local flow, so do not keep remote-only Neovim changes there.
+`scripts/sync-remote.sh` pushes terminal, editor and coding-agent configuration to a remote Linux box over SSH. Tool configuration is replaced outright; do not keep remote-only Neovim changes there. Existing shell profiles and aliases get a `.bak` copy before their first modification. Repeated syncs retain that original backup. Git configuration is left alone.
 
 ```sh
 ./scripts/sync-remote.sh india                          # sync configs only
 ./scripts/sync-remote.sh india --install-tools          # also install CLI tools into ~/.local/bin (-t)
 ./scripts/sync-remote.sh india --dry-run                # print what would change
+herdr --remote india                                   # attach from the Mac
 ```
 
-It syncs the Herdr, Neovim, Git and Zsh configuration, appends `PATH`, `EDITOR` and `TERM_PROGRAM` to the remote `~/.zshrc` / `~/.bashrc`, and reloads a running Herdr server. `--install-tools` fetches prebuilt binaries by `curl` with no sudo; it prefers the GLIBC 2.17 compatible Neovim build for older hosts, though its fallback is the standard release, which needs a newer glibc. The tree-sitter CLI is the exception: every prebuilt build needs glibc 2.28, so on an older host it falls back to a multi-minute `cargo install`, and is skipped with a warning when cargo is absent. `--clean` (or `-c`) additionally purges the remote Neovim plugin cache.
+It initializes Bash/Zsh PATH, fnm, `EDITOR`/`VISUAL` and terminal identity, and reloads a running Herdr server. Open a new shell after syncing. `--dry-run` does not connect. Neovim plugin failures make the command fail and retain a diagnostic log, including failures where Lazy would otherwise return a successful process exit.
 
-It also removes `~/.oh-my-bash/log/update.lock` if present, and generates `~/.config/git/local.conf` on non-Darwin hosts, which clears the macOS credential helper and, under `--profile home` only, applies the personal Git identity. That file is owned by this script and is overwritten on every sync.
+`--install-tools` requires Linux x86_64/ARM64 with Git, curl, tar, gzip, unzip, sha256sum, and a C compiler. On bare Ubuntu, install missing prerequisites with `sudo apt-get install build-essential unzip git curl`. It installs the existing CLI set (Neovim, Herdr, ripgrep, fd, lazygit, jq, fzf, uv, fnm, tree-sitter) in your home directory. Herdr's version matches the initiating Mac, and its downloaded binary is checksum-verified. Neovim must be at least 0.11.2 with LuaJIT. If tree-sitter's binary cannot run on the host, it builds locally using Cargo or a temporary Rust toolchain, removed afterward.
+
+Neovim's distribution lives separately in `~/.local/opt/nvim`, with `~/.local/bin/nvim` linked to it. Reinstalling replaces the runtime completely while retaining user/plugin data in `~/.local/share/nvim`, avoiding stale runtime files after a version change.
+
+Development stacks and agents remain the host's responsibility. fnm initialization uses an existing/default Node installation; on a bare host, `fnm install --lts` provides Node for Node-based editor tools. `--clean` (or `-c`) additionally purges Neovim plugin caches. The sync also removes a stale `~/.oh-my-bash/log/update.lock` and installs shared agent instructions as `~/.claude/CLAUDE.md`.
+
+## Clipboard and remote files
+
+Run `herdr --remote india` on the Mac for native text/image integration. Cmd+C copies selected text, Cmd+V pastes Mac text into the remote pane, and Neovim yanks copy out through OSC 52. Remote Neovim's `p` uses its cached register when no system clipboard is available; use Cmd+V for newly copied Mac text. Cmd+Shift+V invokes Herdr's image upload and inserts a remote image path.
+
+For arbitrary files/folders, use `remote-files` on the Mac. Omit local paths to upload the files copied in Finder with Cmd+C:
+
+```sh
+remote-files put india /tmp                         # files copied in Finder
+remote-files put india "~/uploads" ./report.pdf "./folder with spaces"
+remote-files get india /srv/project/report.pdf ~/Downloads
+remote-files get india /srv/project/results ~/Downloads
+```
+
+The destination directory must exist. SCP can overwrite same-named files. Quote remote `~` paths to prevent expansion on the Mac. Use an SSH alias or `user@hostname`; use an alias for IPv6 addresses.
+
+## Remote Markdown browser preview
+
+Start the bridge in a second **Mac** terminal:
+
+```sh
+remote-preview india
+```
+
+Press **Space c p** in a Markdown buffer in remote Neovim. The bridge forwards its loopback-only preview server over SSH and opens the exact preview page in the Mac browser. Keep it running; Ctrl+C stops the bridge. It also picks up a preview already started. If a saved URL is stale, toggle the preview again.
+
+Each host supports one preview server on port 8765 at a time. To preview a second host concurrently, choose another Mac port: `remote-preview home 8766`. Mac-local Neovim previews keep their normal browser behavior.
+
+## Keybindings
+
+Herdr's terminal fallback is **Ctrl+B**, followed by the listed key; Neovim's leader is **Space**. Herdr-specific Cmd shortcuts target a foreground Herdr client and are ignored in ordinary SSH/mosh sessions.
+
+| Action | Mac shortcut | Terminal fallback |
+| --- | --- | --- |
+| Open a link / select through mouse capture | Cmd+click / Shift+drag | Herdr Ctrl+click / terminal selection |
+| Copy / paste text | Cmd+C / Cmd+V | Neovim yank / paste registers |
+| Paste a remote image | Cmd+Shift+V | Ctrl+Alt+V in Herdr remote |
+| Previous / next Herdr pane | Cmd+Shift+J / K | Prefix j / k |
+| Directional Herdr pane focus | Ctrl+Alt+H/J/K/L | Left / down / up / right |
+| Directional Neovim split focus | Ctrl+H/J/K/L | Left / down / up / right |
+| Vertical / horizontal Herdr split | Cmd+Shift+D / S | Prefix v / - |
+| Vertical / horizontal Neovim split | — | Space v / - |
+| Previous / next Herdr tab | Cmd+Shift+U / I | Prefix p / n |
+| New tab / close pane | Cmd+Shift+T / W | Prefix c / x |
+| Zoom / scrollback / Lazygit | Cmd+Shift+Z / E / L | Prefix z / e / l |
+| Herdr settings / help | — | Prefix s / ? |
+| Markdown browser preview | — | Space c p |
+
+Plain Ctrl+V remains Neovim visual-block selection. Option+J/K remains available for LazyVim's move-line shortcuts. Workspace and rename shortcuts retain the Cmd+Option bindings in `wezterm.lua`.
 
 ## Browsing remote files in VS Code
 

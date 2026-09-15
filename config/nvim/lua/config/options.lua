@@ -53,7 +53,7 @@ local function paste_clipboard(reg)
     -- Not systemlist: the trailing newline is the only linewise/charwise signal.
     if paste_cmd then
       local ok, out = pcall(vim.fn.system, paste_cmd)
-      if ok and vim.v.shell_error == 0 and type(out) == "string" and out ~= "" then
+      if ok and vim.v.shell_error == 0 and type(out) == "string" then
         -- A charwise yank ending at end-of-line writes the same bytes as linewise,
         -- so trust the cached regtype when the text still matches.
         local cached = clip_cache[reg]
@@ -61,7 +61,7 @@ local function paste_clipboard(reg)
           return { cached.lines, cached.regtype }
         end
         local regtype = out:sub(-1) == "\n" and "l" or "v"
-        return { vim.split((out:gsub("\n$", "")), "\n"), regtype }
+        return { out == "" and {} or vim.split((out:gsub("\n$", "")), "\n"), regtype }
       end
     end
     if clip_cache[reg] and clip_cache[reg].lines and #clip_cache[reg].lines > 0 then
