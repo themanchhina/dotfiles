@@ -2,6 +2,8 @@ local root = vim.env.TEST_ROOT or vim.fn.getcwd()
 local scenario = vim.env.TEST_SYNC_SCENARIO
 local plugin = { url = "https://example.invalid/plugin", _ = { installed = scenario ~= "missing" } }
 
+if scenario == "startup" then vim.v.errmsg = "startup config failed" end
+
 package.preload.lazy = function()
   return {
     restore = function(options)

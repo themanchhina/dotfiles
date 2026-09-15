@@ -16,6 +16,45 @@ def executable(path, body):
 
 
 class ScriptsTests(unittest.TestCase):
+    @unittest.skipUnless(shutil.which("nvim"), "Neovim is required for config checks")
+    def test_missing_sync_module_is_reported_as_failure(self):
+        with tempfile.TemporaryDirectory() as directory:
+            directory = Path(directory)
+            executable(directory / "nvim", f'exec {shlex.quote(shutil.which("nvim"))} -u NONE -i NONE --cmd "set rtp=" "$@"')
+            result = subprocess.run(
+                ["bash", "-c", f"source {shlex.quote(str(ROOT / 'scripts/lib/utils.sh'))}; restore_nvim_plugins"],
+                env=os.environ | {"PATH": f"{directory}:{os.environ['PATH']}", "TMPDIR": str(directory)},
+                capture_output=True, text=True, timeout=15,
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn("Log:", result.stderr)
+            self.assertTrue(any("config.sync" in p.read_text() for p in directory.glob("dotfiles-nvim*")))
+
+    def test_inherited_profile_is_validated_before_updates(self):
+        for arguments, expected in [("", 1), ("--profile home", 0), ("--profile=work", 0), ("--profile=", 1)]:
+            with self.subTest(arguments=arguments):
+                result = subprocess.run(
+                    ["bash", "-c", f"source {shlex.quote(str(ROOT / 'scripts/lib/utils.sh'))}; validate_passthrough_args test {arguments}"],
+                    env=os.environ | {"DOTFILES_PROFILE": "invalid"}, capture_output=True, text=True,
+                )
+                self.assertEqual(result.returncode, expected, result.stderr)
+
+    def test_management_alias_handles_repo_path_with_spaces(self):
+        with tempfile.TemporaryDirectory(prefix="dotfiles aliases ") as directory:
+            directory = Path(directory)
+            (directory / "scripts").mkdir()
+            executable(directory / "scripts/rebuild.sh", 'printf "%s\\n" "$1"')
+            # Mock only the OS gate so the shared alias file can be checked on Linux too.
+            result = subprocess.run(
+                ["bash", "-O", "expand_aliases", "-c",
+                 'uname() { echo Darwin; }\nsource "$1"\nrebuild "argument with spaces"',
+                 "test", str(ROOT / "config/zsh/zsh_aliases")],
+                env=os.environ | {"HOME": str(directory), "DOTFILES_DIR": str(directory)},
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(result.stdout.strip(), "argument with spaces")
+
     def test_failed_plugin_command_fails_and_retains_diagnostics(self):
         with tempfile.TemporaryDirectory() as directory:
             directory = Path(directory)

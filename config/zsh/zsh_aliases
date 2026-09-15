@@ -37,12 +37,12 @@ hdrun() {
 # Dotfiles & System Management (macOS)
 if [[ "$(uname -s)" == "Darwin" ]]; then
   DOTFILES_DIR="${DOTFILES_DIR:-$HOME/code/daman/dotfiles}"
-  alias rebuild="$DOTFILES_DIR/scripts/rebuild.sh"
-  alias update="$DOTFILES_DIR/scripts/update.sh"
-  alias sync-brew="$DOTFILES_DIR/scripts/sync-brew.sh"
-  alias sync-remote="$DOTFILES_DIR/scripts/sync-remote.sh"
-  alias remote-files="$DOTFILES_DIR/scripts/remote-files.sh"
-  alias remote-preview="$DOTFILES_DIR/scripts/remote-preview.sh"
+  alias rebuild="$(printf '%q' "$DOTFILES_DIR/scripts/rebuild.sh")"
+  alias update="$(printf '%q' "$DOTFILES_DIR/scripts/update.sh")"
+  alias sync-brew="$(printf '%q' "$DOTFILES_DIR/scripts/sync-brew.sh")"
+  alias sync-remote="$(printf '%q' "$DOTFILES_DIR/scripts/sync-remote.sh")"
+  alias remote-files="$(printf '%q' "$DOTFILES_DIR/scripts/remote-files.sh")"
+  alias remote-preview="$(printf '%q' "$DOTFILES_DIR/scripts/remote-preview.sh")"
   alias nix-clean="nix-collect-garbage --delete-older-than 30d"
 fi
 

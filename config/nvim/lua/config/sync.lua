@@ -1,5 +1,6 @@
 return function(action)
   local ok, err = pcall(function()
+    assert(vim.v.errmsg == "", "Neovim startup failed: " .. vim.v.errmsg)
     require("lazy")[action]({ wait = true, show = false })
     local failed = {}
     for name, plugin in pairs(require("lazy.core.config").plugins) do

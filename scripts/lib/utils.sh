@@ -63,6 +63,7 @@ validate_passthrough_args() {
   local summary="$1"
   shift
   local args=("$@") i=0
+  local profile=""
   while [[ ${i} -lt ${#args[@]} ]]; do
     case "${args[${i}]}" in
       --clean|-c) ;;
@@ -70,9 +71,11 @@ validate_passthrough_args() {
         i=$((i + 1))
         [[ ${i} -lt ${#args[@]} ]] || { echo "Error: --profile requires a value." >&2; return 1; }
         validate_profile "${args[${i}]}" || return 1
+        profile="${args[${i}]}"
         ;;
       --profile=*)
         validate_profile "${args[${i}]#*=}" || return 1
+        profile="${args[${i}]#*=}"
         ;;
       -h|--help)
         print_usage "${summary}"
@@ -85,6 +88,8 @@ validate_passthrough_args() {
     esac
     i=$((i + 1))
   done
+  # Match rebuild's fallback before bootstrap/update perform any mutations.
+  validate_profile "${profile:-${DOTFILES_PROFILE:-}}"
 }
 
 # Resolve the target user, exporting validated environment variables
@@ -107,7 +112,8 @@ run_nvim_headless() {
   log="$(mktemp "${TMPDIR:-/tmp}/dotfiles-nvim.XXXXXX")" || return 1
 
   echo "==> ${label}"
-  if ! nvim --headless "${cmd}" "+qa" </dev/null >"${log}" 2>&1; then
+  # config.sync quits on success; reaching the fallback means it failed to load.
+  if ! nvim --headless "${cmd}" "+cquit 1" </dev/null >"${log}" 2>&1; then
     echo "Error: Neovim plugin setup failed. Log: ${log}" >&2
     return 1
   fi

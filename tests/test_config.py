@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 class ConfigTests(unittest.TestCase):
     def test_lua_regressions(self):
         for path in sorted((ROOT / "tests").glob("test_*.lua")):
-            scenarios = ["success", "task", "error", "missing"] if path.name == "test_nvim_sync.lua" else ["success"]
+            scenarios = ["success", "startup", "task", "error", "missing"] if path.name == "test_nvim_sync.lua" else ["success"]
             for scenario in scenarios:
                 with self.subTest(file=path.name, scenario=scenario):
                     result = subprocess.run(

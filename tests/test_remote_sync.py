@@ -35,6 +35,7 @@ case "$*" in
  --version) echo "NVIM v0.12.5" ;;
  *config.sync*)
   [ "${FNM_SENTINEL:-}" = initialized ] || { echo "fnm was not initialized" >&2; exit 2; }
+  [ "${NVIM_SYNC_MISSING:-0}" = 0 ] || { echo "module not found" >&2; case "$*" in *'+cquit 1'*) exit 1;; *) exit 0;; esac; }
   [ "${NVIM_FAIL:-0}" = 0 ] || { echo "restore failed" >&2; exit 3; };;
 esac
 exit 0
@@ -73,5 +74,10 @@ class RemoteSyncTest(unittest.TestCase):
     def test_dry_run_never_calls_ssh_or_scp(self):
         executable(self.bin/'ssh','#!/bin/sh\nexit 99\n'); executable(self.bin/'scp','#!/bin/sh\nexit 99\n')
         result=self.run_sync('--dry-run'); self.assertEqual(result.returncode,0,result.stderr); self.assertFalse((self.home/'.config').exists())
+
+    def test_missing_sync_module_cannot_report_success(self):
+        result=self.run_sync(NVIM_SYNC_MISSING='1')
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('module not found',next(self.root.glob('dotfiles-nvim.*')).read_text())
 
 if __name__ == '__main__': unittest.main()

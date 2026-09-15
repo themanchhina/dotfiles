@@ -199,7 +199,7 @@ fi
 
 # Shell/runtime setup must precede plugin restoration so Mason and plugin hooks see it.
 if [[ ${dry_run} -eq 1 ]]; then
-  echo "     [dry-run] remote: nvim --headless '+lua require(\"config.sync\")(\"restore\")' '+qa'"
+  echo "     [dry-run] remote: nvim --headless '+lua require(\"config.sync\")(\"restore\")' '+cquit 1'"
 else
   ssh -T "${target_host}" "bash -s -- ${clean}" << 'REMOTE_NVIM_SYNC'
     set -euo pipefail
@@ -211,7 +211,8 @@ else
       rm -rf ~/.local/share/nvim/lazy ~/.local/share/nvim/site ~/.cache/nvim
     fi
     log="$(mktemp "${TMPDIR:-/tmp}/dotfiles-nvim.XXXXXX")"
-    if nvim --headless '+lua require("config.sync")("restore")' '+qa' </dev/null >"${log}" 2>&1; then
+    # config.sync exits itself; cquit catches load errors before it takes control.
+    if nvim --headless '+lua require("config.sync")("restore")' '+cquit 1' </dev/null >"${log}" 2>&1; then
       rm -f "${log}"
     else
       echo "Error: Remote Neovim plugin restore failed. Log: ${log}" >&2
