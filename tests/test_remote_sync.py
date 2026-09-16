@@ -116,6 +116,16 @@ class RemoteSyncTest(unittest.TestCase):
         executable(self.bin/'ssh','#!/bin/sh\nexit 99\n'); executable(self.bin/'scp','#!/bin/sh\nexit 99\n')
         result=self.run_sync('--dry-run'); self.assertEqual(result.returncode,0,result.stderr); self.assertFalse((self.home/'.config').exists())
 
+    def test_old_fzf_rejected_before_changing_configs(self):
+        executable(self.bin/'fzf','#!/bin/sh\necho "unknown option: $1" >&2\nexit 2\n')
+        (self.home/'.bashrc').write_text('host shell\n')
+        result=self.run_sync()
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('Remote fzf needs native shell integration',result.stderr)
+        self.assertIn('--install-tools',result.stderr)
+        self.assertEqual((self.home/'.bashrc').read_text(),'host shell\n')
+        self.assertFalse((self.home/'.config/herdr/config.toml').exists())
+
     def test_missing_sync_module_cannot_report_success(self):
         result=self.run_sync(NVIM_SYNC_MISSING='1')
         self.assertNotEqual(result.returncode,0)

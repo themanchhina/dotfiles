@@ -80,7 +80,7 @@ class RemoteToolsTest(unittest.TestCase):
             curl.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$CURL_LOG"\nout=""; while [ "$#" -gt 0 ]; do [ "$1" = -o ] && { shift; out=$1; }; shift; done\nprintf "#!/bin/sh\\necho direnv 2.37.1\\n" > "$out"\n')
             curl.chmod(0o755)
             source=SCRIPT.read_text()
-            block=source[source.index("# direnv's standalone"):source.index('# 8. uv')]
+            block=source[source.index('if ! report_installed direnv; then'):source.index('if ! report_installed uv; then')]
             command=function('report_installed')+'\n'+function('confirm_installed')+'\ngo_arch=amd64\n'+block
             env=os.environ|{'HOME':str(home),'PATH':f"{home/'.local/bin'}:{binaries}:/usr/bin:/bin",'CURL_LOG':str(log)}
             first=subprocess.run(['bash','-c',command],env=env,text=True,capture_output=True)

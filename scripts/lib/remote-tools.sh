@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# scripts/lib/remote-tools.sh
-# Standalone, zero-sudo installer for essential CLI tools on remote Linux machines.
-# Installs to ~/.local/bin using precompiled static/musl binaries.
+# Install remote Linux CLI tools in user-space without sudo.
 
 set -euo pipefail
 
@@ -56,8 +54,7 @@ latest_github_tag() {
   echo "${tag:-${default}}"
 }
 
-# Already present and runnable? </dev/null is load-bearing: this script arrives on stdin.
-# Empty output counts as broken, as in confirm_installed, so a 0-byte binary reinstalls.
+# Probes must not consume this script's stdin; empty executables do not count as installed.
 report_installed() {
   local name="$1" out
   command -v "${name}" >/dev/null 2>&1 || return 1
@@ -66,8 +63,6 @@ report_installed() {
   echo "     ✓ ${name}: ${out%%$'\n'*}"
 }
 
-# Assign inside `if` or set -e aborts here; empty output means a 0-byte binary bash ran as an
-# empty script. </dev/null here too: this script arrives on stdin, so a probe can eat it.
 confirm_installed() {
   local name="$1"; shift
   local out
@@ -114,7 +109,6 @@ tree_sitter_ready() {
   (( major > 0 || minor > 26 || (minor == 26 && patch >= 1) ))
 }
 
-# Extract one named binary out of a .tar.gz release into ~/.local/bin.
 install_tarball_bin() {
   local name="$1" url="$2" tmp
   tmp="$(mktemp -d)"
@@ -125,7 +119,7 @@ install_tarball_bin() {
   confirm_installed "${name}" "${HOME}/.local/bin/${name}" --version
 }
 
-# 1. Neovim: prefer upstream stable, then try the older-glibc build of the same tag.
+# Try the same Neovim release's older-glibc build if upstream cannot run.
 if ! nvim_ready; then
   if command -v nvim >/dev/null 2>&1; then
     echo "     ⚠️  Existing Neovim does not meet the >= 0.11.2 with LuaJIT requirement. Reinstalling..."
@@ -141,7 +135,6 @@ if ! nvim_ready; then
   confirm_installed nvim "${HOME}/.local/bin/nvim" --version
 fi
 
-# 3. ripgrep (statically linked musl)
 if ! report_installed rg; then
   echo "     -> Installing ripgrep (musl static)..."
   rg_tag="$(latest_github_tag BurntSushi/ripgrep 15.2.0)"
@@ -149,7 +142,6 @@ if ! report_installed rg; then
     "https://github.com/BurntSushi/ripgrep/releases/download/${rg_tag}/ripgrep-${rg_tag#v}-${musl_arch}-unknown-linux-musl.tar.gz"
 fi
 
-# 4. fd-find (statically linked musl)
 if ! report_installed fd; then
   echo "     -> Installing fd (musl static)..."
   fd_tag="$(latest_github_tag sharkdp/fd v10.5.0)"
@@ -157,7 +149,6 @@ if ! report_installed fd; then
     "https://github.com/sharkdp/fd/releases/download/${fd_tag}/fd-${fd_tag}-${musl_arch}-unknown-linux-musl.tar.gz"
 fi
 
-# 5. lazygit (static Go binary)
 if ! report_installed lazygit; then
   echo "     -> Installing lazygit..."
   lg_tag="$(latest_github_tag jesseduffield/lazygit v0.65.0)"
@@ -165,7 +156,6 @@ if ! report_installed lazygit; then
     "https://github.com/jesseduffield/lazygit/releases/download/${lg_tag}/lazygit_${lg_tag#v}_linux_${release_arch}.tar.gz"
 fi
 
-# 6. jq (single statically linked binary, not a tarball)
 if ! report_installed jq; then
   echo "     -> Installing jq..."
   tmp_dir="$(mktemp -d)"
@@ -176,8 +166,7 @@ if ! report_installed jq; then
   confirm_installed jq "${HOME}/.local/bin/jq" --version
 fi
 
-# Match the initiating Mac's Herdr version. Downloading the verified Linux asset
-# is much faster than uploading a native binary over an interactive SSH link.
+# Match the Mac's Herdr version for client/server compatibility.
 herdr_version="${1:-}"
 [[ "${herdr_version}" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][A-Za-z0-9.]+)?$ ]] || { echo "Error: Invalid or missing Herdr version." >&2; exit 1; }
 if [[ "$(herdr --version </dev/null 2>/dev/null || true)" != "herdr ${herdr_version}" ]]; then
@@ -197,7 +186,7 @@ if [[ "$(herdr --version </dev/null 2>/dev/null || true)" != "herdr ${herdr_vers
   )
 fi
 
-# 7. fzf (static Go binary)
+# fzf 0.48+ embeds the shell integration used by sync-remote.sh.
 if ! report_installed fzf || ! fzf --bash </dev/null >/dev/null 2>&1; then
   echo "     -> Installing fzf..."
   fzf_tag="$(latest_github_tag junegunn/fzf v0.74.3)"
@@ -205,7 +194,6 @@ if ! report_installed fzf || ! fzf --bash </dev/null >/dev/null 2>&1; then
     "https://github.com/junegunn/fzf/releases/download/${fzf_tag}/fzf-${fzf_tag#v}-linux_${go_arch}.tar.gz"
 fi
 
-# direnv's standalone binary leaves host development stacks and shell files alone.
 if ! report_installed direnv; then
   echo "     -> Installing direnv..."
   tmp_dir="$(mktemp -d)"
@@ -216,14 +204,12 @@ if ! report_installed direnv; then
   rm -rf "${tmp_dir}"
 fi
 
-# 8. uv (Python package manager & runner)
 if ! report_installed uv; then
   echo "     -> Installing uv..."
   curl -LsSf https://astral.sh/uv/install.sh | UV_INSTALL_DIR="${HOME}/.local/bin" sh
   confirm_installed uv "${HOME}/.local/bin/uv" --version
 fi
 
-# 9. fnm (Fast Node Manager for Mason / LSPs). Its install dir is already on PATH above.
 if ! report_installed fnm; then
   echo "     -> Installing fnm..."
   curl -fsSL https://fnm.vercel.app/install | bash -s -- --skip-shell --install-dir "${HOME}/.local/share/fnm"
@@ -233,8 +219,7 @@ if ! report_installed fnm; then
   confirm_installed fnm "${HOME}/.local/share/fnm/fnm" --version
 fi
 
-# 10. tree-sitter CLI. Runtime-check the prebuilt because current release assets
-# can require a newer glibc than the remote host provides.
+# Build tree-sitter locally if the prebuilt needs a newer glibc than the host provides.
 if ! tree_sitter_ready; then
   echo "     -> Installing tree-sitter CLI..."
   ts_tag="$(latest_github_tag tree-sitter/tree-sitter v0.27.0)"
@@ -243,8 +228,7 @@ if ! tree_sitter_ready; then
   if curl -fsSL "https://github.com/tree-sitter/tree-sitter/releases/download/${ts_tag}/tree-sitter-linux-${ts_arch}.gz" \
     | gzip -dc > "${tmp_dir}/tree-sitter" 2>/dev/null && [[ -s "${tmp_dir}/tree-sitter" ]]; then
     chmod +x "${tmp_dir}/tree-sitter"
-    # Verify before installing: a binary that cannot run is worse than none, because
-    # command -v finds it and Neovim then fails with a bare linker error.
+    # Do not put an unrunnable binary on Neovim's PATH.
     if tree_sitter_ready "${tmp_dir}/tree-sitter"; then
       mv "${tmp_dir}/tree-sitter" "${HOME}/.local/bin/tree-sitter"
       ts_ok=1

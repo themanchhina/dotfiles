@@ -20,10 +20,7 @@ jobs:
         with:
           determinate: true
 
-      # No `nix flake check`: it skips darwinConfigurations, so these evals are the
-      # only thing that catches module errors. Restore it if a checks/packages
-      # output is ever added, since nothing else would gate one.
-      # Both profiles: the home lists in darwin.nix are otherwise never evaluated.
+      # flake check skips darwinConfigurations; evaluate both package profiles explicitly.
       - name: Evaluate darwin configuration
         run: |
           for p in work home; do
@@ -32,8 +29,7 @@ jobs:
               "path:.#darwinConfigurations.default.config.system.build.toplevel.drvPath" >/dev/null
           done
 
-      # mkOutOfStoreSymlink takes a string, so a renamed config/ file evaluates
-      # fine and only shows up as a dangling symlink in $HOME.
+      # Out-of-store symlinks can evaluate successfully even when their sources are missing.
       - name: Verify every managed link source exists
         run: |
           grep -o '= link "[^"]*"' home.nix | sed 's/.*link "//; s/"$//' | while read -r p; do
@@ -43,7 +39,6 @@ jobs:
       - name: Validate shell scripts syntax
         run: for f in scripts/*.sh scripts/lib/*.sh; do bash -n "$f"; done
 
-      # The macOS runner images ship no shellcheck; nix is already installed above.
       - name: Lint shell scripts
         run: nix run nixpkgs/nixos-26.05#shellcheck -- --severity=warning scripts/*.sh scripts/lib/*.sh
 

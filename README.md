@@ -119,6 +119,8 @@ Neovim's distribution lives separately in `~/.local/opt/nvim`, with `~/.local/bi
 
 Development stacks and agents remain the host's responsibility. fnm initialization uses an existing/default Node installation; on a bare host, `fnm install --lts` provides Node for Node-based editor tools. `--clean` (or `-c`) additionally purges Neovim plugin caches. The sync also removes a stale `~/.oh-my-bash/log/update.lock` and installs shared agent instructions as `~/.claude/CLAUDE.md`.
 
+Config-only sync rejects an installed fzf without native shell integration before replacing configs; re-run with `--install-tools` to upgrade it. If fzf or direnv is absent, its shell hook stays inactive until installed.
+
 ## Clipboard and remote files
 
 Run `herdr --remote india` on the Mac for native text/image integration. Cmd+C copies selected text, Cmd+V pastes Mac text into the remote pane, and Neovim yanks copy out through OSC 52. Remote Neovim's `p` uses its cached register when no system clipboard is available; use Cmd+V for newly copied Mac text. Cmd+Shift+V invokes Herdr's image upload and inserts a remote image path.

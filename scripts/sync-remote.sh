@@ -107,7 +107,6 @@ else
   ' </dev/null
 fi
 
-# Optional: Install essential CLI tools in user-space (~/.local/bin) via curl
 if [[ ${install_tools} -eq 1 ]]; then
   echo "==> Checking and installing essential CLI tools on '${target_host}'..."
   # Fed on stdin, never scp'd: a predictable remote ~/.remote-tools-$$.sh can be a pre-planted symlink.
@@ -123,9 +122,18 @@ if [[ ${dry_run} -eq 0 ]] && ! ssh -T "${target_host}" 'export PATH="$HOME/.loca
   exit 1
 fi
 
+if [[ ${dry_run} -eq 0 ]]; then
+  ssh -T "${target_host}" '
+    export PATH="$HOME/.local/bin:$PATH"
+    if command -v fzf >/dev/null 2>&1 && ! fzf --bash </dev/null >/dev/null 2>&1; then
+      echo "Error: Remote fzf needs native shell integration (>= 0.48). Re-run with --install-tools." >&2
+      exit 1
+    fi
+  ' </dev/null
+fi
+
 echo "==> Syncing configs to '${target_host}'..."
 
-# 1. Herdr config
 echo "  -> Herdr: config/herdr/config.toml"
 if [[ ${dry_run} -eq 1 ]]; then
   echo "     [dry-run] scp ${repo_dir}/config/herdr/config.toml ${target_host}:~/.config/herdr/config.toml.tmp, then rename to config.toml"
@@ -134,7 +142,6 @@ else
   ssh -T "${target_host}" 'mv -f ~/.config/herdr/config.toml.tmp ~/.config/herdr/config.toml' </dev/null
 fi
 
-# 2. Neovim config
 echo "  -> Neovim: config/nvim/"
 if [[ ${dry_run} -eq 1 ]]; then
   echo "     [dry-run] remote: rm -rf ~/.config/nvim.tmp"
@@ -151,7 +158,6 @@ else
 
 fi
 
-# 3. Zsh aliases
 echo "  -> Zsh: .zsh_aliases"
 if [[ ${dry_run} -eq 1 ]]; then
   echo "     [dry-run] scp ${repo_dir}/config/zsh/zsh_aliases ${target_host}:~/.zsh_aliases"
@@ -160,14 +166,13 @@ else
   scp -q "${repo_dir}/config/zsh/zsh_aliases" "${target_host}:~/.zsh_aliases"
 fi
 
-# 5. Remote shell hooks (PATH, TERM_PROGRAM & aliases sourcing)
 echo "  -> Ensuring remote shell environment (PATH, TERM_PROGRAM=WezTerm & alias sourcing)..."
 if [[ ${dry_run} -eq 1 ]]; then
   echo "     [dry-run] back up and configure both ~/.zshrc / ~/.bashrc: PATH, editor, terminal, aliases, fnm, fzf shortcuts and direnv"
 else
   ssh -T "${target_host}" 'bash -s' << 'REMOTE_SCRIPT'
     set -euo pipefail
-    # Script-owned sentinels: matching the payload caught foreign exports.
+    # Match our markers, not similar exports already owned by the host.
     ensure_line() {
       local rc="$1" marker="$2" block="$3"
       grep -qF "dotfiles-managed:${marker}" "${rc}" 2>/dev/null && return 0
@@ -235,13 +240,11 @@ else
 REMOTE_NVIM_SYNC
 fi
 
-# 6. Agent instructions
 echo "  -> Agent: config/agent/AGENTS.md"
 if [[ ${dry_run} -eq 1 ]]; then
   echo "     [dry-run] scp ${repo_dir}/config/agent/AGENTS.md ${target_host}:~/.claude/CLAUDE.md.tmp, then rename to CLAUDE.md"
   echo "     [dry-run] skipped instead if the remote path is already a symlink"
-# A symlink means the remote has its own checkout and edits are live there; copying
-# over it would silently freeze the file at this sync.
+# Preserve remote checkout links so their edits remain live.
 elif ssh -T "${target_host}" '[ -L ~/.claude/CLAUDE.md ]' </dev/null; then
   echo "     remote symlinks it into a checkout, left alone"
 else
@@ -249,7 +252,6 @@ else
   ssh -T "${target_host}" 'mv -f ~/.claude/CLAUDE.md.tmp ~/.claude/CLAUDE.md' </dev/null
 fi
 
-# 7. Reload running Herdr server if present
 echo "  -> Checking for running Herdr server on '${target_host}'..."
 if [[ ${dry_run} -eq 1 ]]; then
   echo "     [dry-run] herdr server reload-config"

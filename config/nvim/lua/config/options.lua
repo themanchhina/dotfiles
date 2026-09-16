@@ -1,16 +1,9 @@
--- Options are automatically loaded before lazy.nvim startup
--- Default options that are always set: https://github.com/LazyVim/LazyVim/blob/main/lua/lazyvim/config/options.lua
--- Add any additional options here
-
 vim.opt.scrolloff = 16
 
--- Universal clipboard provider using OSC 52 & system pasteboard
--- Bridges directly to WezTerm, Herdr, and remote SSH sessions
--- Bypasses macOS launchd/Mach bootstrap namespace failures with pbcopy
+-- OSC 52 reaches the Mac through SSH/Herdr; cache yanks when system paste is unavailable.
 local clip_cache = { ["+"] = {}, ["*"] = {} }
 local osc52 = require("vim.ui.clipboard.osc52")
 
--- Per-OS: this tree is synced to Linux remotes, which have no pbcopy/pbpaste.
 local function first_executable(candidates)
   for _, cmd in ipairs(candidates) do
     if vim.fn.executable(cmd[1]) == 1 then return cmd end
@@ -25,10 +18,8 @@ local function copy_with_osc52(reg)
   return function(lines, regtype)
     clip_cache[reg] = { lines = lines, regtype = regtype or "l" }
 
-    -- Built-in Neovim OSC 52 handler (via nvim_ui_send)
     pcall(osc52_copy, lines)
 
-    -- System pasteboard fallback if running in a session where it works.
     -- Do not append a newline: linewise already carries a final empty element.
     if copy_cmd then
       local text = table.concat(lines, "\n")
