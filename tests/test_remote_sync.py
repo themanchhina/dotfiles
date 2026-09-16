@@ -73,10 +73,12 @@ class RemoteSyncTest(unittest.TestCase):
     def test_fresh_shells_have_native_shortcuts_and_preserve_prompt(self):
         result=self.run_sync(SHELL='/bin/bash')
         self.assertEqual(result.returncode,0,result.stderr)
-        for shell, options, bindings in (
+        for shell_bin, options, bindings in (
             ('bash', ['--noprofile', '--norc', '-ic'], 'bind -X; bind -s'),
+            ('/bin/bash', ['--noprofile', '--norc', '-ic'], 'bind -X; bind -s'),
             ('zsh', ['-dfi', '-c'], 'bindkey "^R"; bindkey "^T"; bindkey "^[c"'),
         ):
+            shell=Path(shell_bin).name
             rc=self.home/f'.{shell}rc'
             self.assertTrue(rc.exists())
             original=rc.read_text()
@@ -84,14 +86,14 @@ class RemoteSyncTest(unittest.TestCase):
             self.assertEqual(result.returncode,0,result.stderr)
             self.assertEqual(rc.read_text(),original, 'sync duplicated shell hooks')
             command=f'PS1=host-prompt; source "$HOME/.{shell}rc"; {bindings}; typeset -f _direnv_hook; printf "\\n%s\\n" "$PS1" "$EDITOR" "$FZF_CTRL_T_COMMAND" "$FZF_ALT_C_COMMAND"'
-            result=subprocess.run([shell,*options,command],env=os.environ|{'HOME':str(self.home),'ZDOTDIR':str(self.home),'PATH':f"{self.bin}:{os.environ['PATH']}"},text=True,capture_output=True,timeout=15)
+            result=subprocess.run([shell_bin,*options,command],env=os.environ|{'HOME':str(self.home),'ZDOTDIR':str(self.home),'PATH':f"{self.bin}:{os.environ['PATH']}"},text=True,capture_output=True,timeout=15)
             self.assertEqual(result.returncode,0,result.stderr)
-            for expected in ('fzf', 'history', 'file-widget', '_direnv_hook', 'host-prompt', 'nvim',
+            for expected in ('_direnv_hook', 'host-prompt', 'nvim',
                              'fd --type f --strip-cwd-prefix --hidden --exclude .git',
                              'fd --type d --strip-cwd-prefix --hidden --exclude .git'):
                 self.assertIn(expected,result.stdout)
             for chord in (('\\C-r', '\\C-t', '\\ec') if shell == 'bash' else ('^R', '^T', '^[c')):
-                self.assertIn(chord,result.stdout)
+                self.assertTrue(any(chord in line and 'fzf' in line for line in result.stdout.splitlines()), result.stdout)
 
     def test_failed_config_upload_keeps_live_file(self):
         first=self.run_sync(); self.assertEqual(first.returncode,0,first.stderr)
