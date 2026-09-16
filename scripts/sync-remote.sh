@@ -22,7 +22,7 @@ Arguments:
 
 Options:
   -t, --install-tools, --tools
-                       Install missing CLI tools (nvim, herdr, rg, fd, lazygit, jq, fzf, uv, fnm, tree-sitter) via curl into ~/.local/bin
+                       Install missing CLI tools (nvim, herdr, rg, fd, lazygit, jq, fzf, direnv, uv, fnm, tree-sitter) into ~/.local/bin
   --clean, -c          Purge remote Neovim plugin cache and reinstall fresh from lockfile
   --dry-run            Show what would be copied without making changes
   -h, --help           Show this help message
@@ -128,9 +128,10 @@ echo "==> Syncing configs to '${target_host}'..."
 # 1. Herdr config
 echo "  -> Herdr: config/herdr/config.toml"
 if [[ ${dry_run} -eq 1 ]]; then
-  echo "     [dry-run] scp ${repo_dir}/config/herdr/config.toml ${target_host}:~/.config/herdr/config.toml"
+  echo "     [dry-run] scp ${repo_dir}/config/herdr/config.toml ${target_host}:~/.config/herdr/config.toml.tmp, then rename to config.toml"
 else
-  scp -q "${repo_dir}/config/herdr/config.toml" "${target_host}:~/.config/herdr/config.toml"
+  scp -q "${repo_dir}/config/herdr/config.toml" "${target_host}:~/.config/herdr/config.toml.tmp"
+  ssh -T "${target_host}" 'mv -f ~/.config/herdr/config.toml.tmp ~/.config/herdr/config.toml' </dev/null
 fi
 
 # 2. Neovim config
@@ -162,7 +163,7 @@ fi
 # 5. Remote shell hooks (PATH, TERM_PROGRAM & aliases sourcing)
 echo "  -> Ensuring remote shell environment (PATH, TERM_PROGRAM=WezTerm & alias sourcing)..."
 if [[ ${dry_run} -eq 1 ]]; then
-  echo "     [dry-run] append PATH (~/.local/bin, ~/.local/share/fnm), EDITOR=nvim, TERM_PROGRAM=WezTerm and zsh_aliases sourcing to remote ~/.zshrc / ~/.bashrc"
+  echo "     [dry-run] back up and configure both ~/.zshrc / ~/.bashrc: PATH, editor, terminal, aliases, fnm, fzf shortcuts and direnv"
 else
   ssh -T "${target_host}" 'bash -s' << 'REMOTE_SCRIPT'
     set -euo pipefail
@@ -181,19 +182,32 @@ else
       ensure_line "${rc}" editor-v2 'export EDITOR=nvim\nexport VISUAL=nvim\n'
       ensure_line "${rc}" term-program 'export TERM_PROGRAM="${TERM_PROGRAM:-WezTerm}"\n'
       ensure_line "${rc}" aliases '[[ -f ~/.zsh_aliases ]] && source ~/.zsh_aliases\n'
+      ensure_line "${rc}" fzf-commands 'export FZF_DEFAULT_COMMAND="fd --type f --strip-cwd-prefix --hidden --exclude .git"
+export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+export FZF_ALT_C_COMMAND="fd --type d --strip-cwd-prefix --hidden --exclude .git"
+'
       case "${rc}" in
-        *.zshrc) ensure_line "${rc}" fnm 'command -v fnm >/dev/null 2>&1 && eval "$(fnm env --use-on-cd --shell zsh)"\n' ;;
-        *.bashrc) ensure_line "${rc}" fnm 'command -v fnm >/dev/null 2>&1 && eval "$(fnm env --use-on-cd --shell bash)"\n' ;;
+        *.zshrc)
+          ensure_line "${rc}" fnm 'command -v fnm >/dev/null 2>&1 && eval "$(fnm env --use-on-cd --shell zsh)"\n'
+          ensure_line "${rc}" shell-tools 'if [[ $- == *i* ]]; then
+  command -v fzf >/dev/null 2>&1 && eval "$(fzf --zsh)"
+  command -v direnv >/dev/null 2>&1 && eval "$(direnv hook zsh)"
+fi
+'
+          ;;
+        *.bashrc)
+          ensure_line "${rc}" fnm 'command -v fnm >/dev/null 2>&1 && eval "$(fnm env --use-on-cd --shell bash)"\n'
+          ensure_line "${rc}" shell-tools 'if [[ $- == *i* ]]; then
+  command -v fzf >/dev/null 2>&1 && eval "$(fzf --bash)"
+  command -v direnv >/dev/null 2>&1 && eval "$(direnv hook bash)"
+fi
+'
+          ;;
       esac
     }
 
-    if [[ -f ~/.zshrc || ! -f ~/.bashrc ]]; then
-      touch ~/.zshrc
-      setup_rc ~/.zshrc
-    fi
-    if [[ -f ~/.bashrc ]]; then
-      setup_rc ~/.bashrc
-    fi
+    setup_rc ~/.zshrc
+    setup_rc ~/.bashrc
 REMOTE_SCRIPT
 fi
 
@@ -224,14 +238,15 @@ fi
 # 6. Agent instructions
 echo "  -> Agent: config/agent/AGENTS.md"
 if [[ ${dry_run} -eq 1 ]]; then
-  echo "     [dry-run] scp ${repo_dir}/config/agent/AGENTS.md ${target_host}:~/.claude/CLAUDE.md"
+  echo "     [dry-run] scp ${repo_dir}/config/agent/AGENTS.md ${target_host}:~/.claude/CLAUDE.md.tmp, then rename to CLAUDE.md"
   echo "     [dry-run] skipped instead if the remote path is already a symlink"
 # A symlink means the remote has its own checkout and edits are live there; copying
 # over it would silently freeze the file at this sync.
 elif ssh -T "${target_host}" '[ -L ~/.claude/CLAUDE.md ]' </dev/null; then
   echo "     remote symlinks it into a checkout, left alone"
 else
-  scp -q "${repo_dir}/config/agent/AGENTS.md" "${target_host}:~/.claude/CLAUDE.md"
+  scp -q "${repo_dir}/config/agent/AGENTS.md" "${target_host}:~/.claude/CLAUDE.md.tmp"
+  ssh -T "${target_host}" 'mv -f ~/.claude/CLAUDE.md.tmp ~/.claude/CLAUDE.md' </dev/null
 fi
 
 # 7. Reload running Herdr server if present

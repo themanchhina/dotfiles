@@ -72,6 +72,24 @@ class RemoteToolsTest(unittest.TestCase):
                 result=subprocess.run(['bash','-c',f'{check}\ntree_sitter_ready "{fake}"'],env=os.environ|{'VERSION':version})
                 self.assertEqual(result.returncode == 0,expected,version)
 
+    def test_direnv_installs_arch_asset_once(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory); home=root/'home'; binaries=root/'bin'; log=root/'curl.log'
+            (home/'.local/bin').mkdir(parents=True); binaries.mkdir()
+            curl=binaries/'curl'
+            curl.write_text('#!/bin/sh\nprintf "%s\\n" "$*" >> "$CURL_LOG"\nout=""; while [ "$#" -gt 0 ]; do [ "$1" = -o ] && { shift; out=$1; }; shift; done\nprintf "#!/bin/sh\\necho direnv 2.37.1\\n" > "$out"\n')
+            curl.chmod(0o755)
+            source=SCRIPT.read_text()
+            block=source[source.index("# direnv's standalone"):source.index('# 8. uv')]
+            command=function('report_installed')+'\n'+function('confirm_installed')+'\ngo_arch=amd64\n'+block
+            env=os.environ|{'HOME':str(home),'PATH':f"{home/'.local/bin'}:{binaries}:/usr/bin:/bin",'CURL_LOG':str(log)}
+            first=subprocess.run(['bash','-c',command],env=env,text=True,capture_output=True)
+            self.assertEqual(first.returncode,0,first.stderr)
+            self.assertIn('direnv.linux-amd64',log.read_text())
+            second=subprocess.run(['bash','-c',command],env=env,text=True,capture_output=True)
+            self.assertEqual(second.returncode,0,second.stderr)
+            self.assertEqual(len(log.read_text().splitlines()),1)
+
     def test_preflight_stops_before_download_without_compiler(self):
         with tempfile.TemporaryDirectory() as directory:
             bin_dir=Path(directory)

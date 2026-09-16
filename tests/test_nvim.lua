@@ -14,13 +14,19 @@ vim.fn.writefile({ "#!/bin/sh", "printf '%s' \"$TEST_CLIPBOARD\"" }, bin .. "/pb
 vim.fn.writefile({ "#!/bin/sh", "/bin/cat >/dev/null" }, bin .. "/pbcopy")
 vim.fn.system({ "chmod", "+x", bin .. "/pbpaste", bin .. "/pbcopy" })
 vim.env.PATH = bin
-package.loaded["vim.ui.clipboard.osc52"] = { copy = function() return function() end end }
-io.stdout = { write = function() end, flush = function() end }
+local osc52_copies, stdout_writes = 0, 0
+package.loaded["vim.ui.clipboard.osc52"] = {
+  copy = function()
+    return function() osc52_copies = osc52_copies + 1 end
+  end,
+}
+io.stdout = { write = function() stdout_writes = stdout_writes + 1 end, flush = function() end }
 dofile(root .. "/config/nvim/lua/config/options.lua")
 
 local copy = vim.g.clipboard.copy["+"]
 local paste = vim.g.clipboard.paste["+"]
 copy({ "old" }, "V")
+check(osc52_copies == 1 and stdout_writes == 0, "copy must use one native OSC 52 emission")
 vim.env.TEST_CLIPBOARD = ""
 local empty = paste()
 check(#empty[1] == 0 and empty[2] == "v", "successful empty clipboard reused stale cache")

@@ -22,25 +22,16 @@ local paste_cmd = first_executable({ { "pbpaste" }, { "wl-paste", "-n" }, { "xcl
 
 local function copy_with_osc52(reg)
   local osc52_copy = osc52.copy(reg)
-  local clip_id = reg == "+" and "c" or "p"
   return function(lines, regtype)
     clip_cache[reg] = { lines = lines, regtype = regtype or "l" }
 
-    -- 1. Built-in Neovim OSC 52 handler (via nvim_ui_send)
+    -- Built-in Neovim OSC 52 handler (via nvim_ui_send)
     pcall(osc52_copy, lines)
 
-    -- 2. Direct OSC 52 sequence to stdout to ensure reception across nested PTYs
-    local text = table.concat(lines, "\n")
-    local encoded = vim.base64.encode(text)
-    local seq = string.format("\027]52;%s;%s\027\\", clip_id, encoded)
-    pcall(function()
-      io.stdout:write(seq)
-      io.stdout:flush()
-    end)
-
-    -- 3. System pasteboard fallback if running in a session where it works.
+    -- System pasteboard fallback if running in a session where it works.
     -- Do not append a newline: linewise already carries a final empty element.
     if copy_cmd then
+      local text = table.concat(lines, "\n")
       pcall(function()
         vim.fn.system(copy_cmd, text)
       end)

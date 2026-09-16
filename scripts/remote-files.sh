@@ -52,7 +52,7 @@ JXA
       [[ "$path" == /* ]] || path="$PWD/$path"
       absolute_paths+=("$path")
     done
-    scp -r -- "${absolute_paths[@]}" "${host}:${remote_dir}"
+    scp -r -- "${absolute_paths[@]}" "${host}:${remote_dir%/}/"
     ;;
   get)
     [[ $# -le 2 ]] || usage

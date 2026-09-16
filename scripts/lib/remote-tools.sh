@@ -198,11 +198,22 @@ if [[ "$(herdr --version </dev/null 2>/dev/null || true)" != "herdr ${herdr_vers
 fi
 
 # 7. fzf (static Go binary)
-if ! report_installed fzf; then
+if ! report_installed fzf || ! fzf --bash </dev/null >/dev/null 2>&1; then
   echo "     -> Installing fzf..."
   fzf_tag="$(latest_github_tag junegunn/fzf v0.74.3)"
   install_tarball_bin fzf \
     "https://github.com/junegunn/fzf/releases/download/${fzf_tag}/fzf-${fzf_tag#v}-linux_${go_arch}.tar.gz"
+fi
+
+# direnv's standalone binary leaves host development stacks and shell files alone.
+if ! report_installed direnv; then
+  echo "     -> Installing direnv..."
+  tmp_dir="$(mktemp -d)"
+  curl -fsSL "https://github.com/direnv/direnv/releases/latest/download/direnv.linux-${go_arch}" -o "${tmp_dir}/direnv"
+  chmod +x "${tmp_dir}/direnv"
+  confirm_installed direnv "${tmp_dir}/direnv" --version
+  mv "${tmp_dir}/direnv" "${HOME}/.local/bin/direnv"
+  rm -rf "${tmp_dir}"
 fi
 
 # 8. uv (Python package manager & runner)

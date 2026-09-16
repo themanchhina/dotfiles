@@ -49,5 +49,5 @@ jobs:
 
       - name: Run regression checks
         run: |
-          nix shell --inputs-from . nixpkgs#neovim nixpkgs#jq --command \
+          nix shell --inputs-from . nixpkgs#neovim nixpkgs#jq nixpkgs#fzf nixpkgs#direnv --command \
             python3 -m unittest discover -s tests -v

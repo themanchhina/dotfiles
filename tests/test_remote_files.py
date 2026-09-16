@@ -10,14 +10,21 @@ SCRIPT = Path(__file__).parents[1] / "scripts/remote-files.sh"
 
 
 class RemoteFilesTests(unittest.TestCase):
-    def run_script(self, *args, scp_exit=0, osascript_output=None):
+    def run_script(self, *args, scp_exit=0, osascript_output=None, native_scp=False):
         with tempfile.TemporaryDirectory() as tmp:
             bindir = Path(tmp) / "bin"
             bindir.mkdir()
             log = Path(tmp) / "argv"
-            (bindir / "scp").write_text(
-                f"#!/bin/sh\nprintf '%s\\0' \"$@\" > \"$REMOTE_FILES_LOG\"\nexit {scp_exit}\n"
-            )
+            if native_scp:
+                (bindir / "scp").write_text(
+                    "#!/usr/bin/env python3\n"
+                    "import os, sys\n"
+                    "os.execv('/usr/bin/scp', ['scp', *sys.argv[1:-1], sys.argv[-1].split(':', 1)[1]])\n"
+                )
+            else:
+                (bindir / "scp").write_text(
+                    f"#!/bin/sh\nprintf '%s\\0' \"$@\" > \"$REMOTE_FILES_LOG\"\nexit {scp_exit}\n"
+                )
             (bindir / "scp").chmod(0o755)
             if osascript_output is not None:
                 (bindir / "osascript").write_text(
@@ -41,7 +48,7 @@ class RemoteFilesTests(unittest.TestCase):
             result, argv = self.run_script("put", "box", "/tmp/drop", *(str(p) for p in paths))
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(argv[:3], ["-r", "--", str(paths[0])])
-        self.assertEqual(argv[-1], "box:/tmp/drop")
+        self.assertEqual(argv[-1], "box:/tmp/drop/")
 
     def test_put_reads_finder_clipboard_json(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -53,7 +60,18 @@ class RemoteFilesTests(unittest.TestCase):
             )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(argv[0:3], ["-r", "--", str(paths[0])])
-        self.assertEqual(argv[-1], "box:/tmp/drop")
+        self.assertEqual(argv[-1], "box:/tmp/drop/")
+
+    def test_put_rejects_missing_directory_with_one_source(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "source"
+            destination = Path(tmp) / "missing"
+            source.write_text("x")
+            result, _ = self.run_script(
+                "put", "box", str(destination), str(source), native_scp=True
+            )
+            self.assertNotEqual(result.returncode, 0)
+            self.assertFalse(destination.exists())
 
     def test_scp_failure_is_visible(self):
         with tempfile.TemporaryDirectory() as tmp:
