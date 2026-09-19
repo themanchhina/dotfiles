@@ -73,10 +73,11 @@ class RemoteSyncTest(unittest.TestCase):
     def test_fresh_shells_have_native_shortcuts_and_preserve_prompt(self):
         result=self.run_sync(SHELL='/bin/bash')
         self.assertEqual(result.returncode,0,result.stderr)
-        for shell_bin, options, bindings in (
-            ('bash', ['--noprofile', '--norc', '-ic'], 'bind -X; bind -s'),
-            ('/bin/bash', ['--noprofile', '--norc', '-ic'], 'bind -X; bind -s'),
-            ('zsh', ['-dfi', '-c'], 'bindkey "^R"; bindkey "^T"; bindkey "^[c"'),
+        # zsh's environment lives in .zshenv, which -dfi deliberately skips.
+        for shell_bin, options, bindings, prelude in (
+            ('bash', ['--noprofile', '--norc', '-ic'], 'bind -X; bind -s', ''),
+            ('/bin/bash', ['--noprofile', '--norc', '-ic'], 'bind -X; bind -s', ''),
+            ('zsh', ['-dfi', '-c'], 'bindkey "^R"; bindkey "^T"; bindkey "^[c"', 'source "$HOME/.zshenv"; '),
         ):
             shell=Path(shell_bin).name
             rc=self.home/f'.{shell}rc'
@@ -85,7 +86,7 @@ class RemoteSyncTest(unittest.TestCase):
             result=self.run_sync()
             self.assertEqual(result.returncode,0,result.stderr)
             self.assertEqual(rc.read_text(),original, 'sync duplicated shell hooks')
-            command=f'PS1=host-prompt; source "$HOME/.{shell}rc"; {bindings}; typeset -f _direnv_hook; printf "\\n%s\\n" "$PS1" "$EDITOR" "$FZF_CTRL_T_COMMAND" "$FZF_ALT_C_COMMAND"'
+            command=f'{prelude}PS1=host-prompt; source "$HOME/.{shell}rc"; {bindings}; typeset -f _direnv_hook; printf "\\n%s\\n" "$PS1" "$EDITOR" "$FZF_CTRL_T_COMMAND" "$FZF_ALT_C_COMMAND"'
             result=subprocess.run([shell_bin,*options,command],env=os.environ|{'HOME':str(self.home),'ZDOTDIR':str(self.home),'PATH':f"{self.bin}:{os.environ['PATH']}"},text=True,capture_output=True,timeout=15)
             self.assertEqual(result.returncode,0,result.stderr)
             for expected in ('_direnv_hook', 'host-prompt', 'nvim',
@@ -94,6 +95,26 @@ class RemoteSyncTest(unittest.TestCase):
                 self.assertIn(expected,result.stdout)
             for chord in (('\\C-r', '\\C-t', '\\ec') if shell == 'bash' else ('^R', '^T', '^[c')):
                 self.assertTrue(any(chord in line and 'fzf' in line for line in result.stdout.splitlines()), result.stdout)
+
+    @unittest.skipUnless(shutil.which('zsh'), 'zsh is required')
+    def test_noninteractive_zsh_finds_tools_and_editor(self):
+        # A herdr popup gets .zshenv and never .zshrc; ~/.local/bin must resolve.
+        result=self.run_sync(); self.assertEqual(result.returncode,0,result.stderr)
+        local_bin=self.home/'.local/bin'; local_bin.mkdir(parents=True,exist_ok=True)
+        executable(local_bin/'lazygit','#!/bin/sh\nexit 0\n')
+        env={'HOME':str(self.home),'ZDOTDIR':str(self.home),'PATH':'/usr/bin:/bin'}
+        probe=subprocess.run(['zsh','-c','printf "%s\\n%s\\n%s\\n" "${commands[lazygit]}" "$EDITOR" "$PATH"'],
+                             env=env,text=True,capture_output=True,timeout=15)
+        self.assertEqual(probe.returncode,0,probe.stderr)
+        lazygit,editor,path=probe.stdout.splitlines()[:3]
+        self.assertEqual(lazygit,str(local_bin/'lazygit'))
+        self.assertEqual(editor,'nvim')
+        self.assertIn(str(local_bin),path.split(':'))
+        # The guard has to survive nesting, or every child shell grows PATH.
+        nested=subprocess.run(['zsh','-c',r'zsh -c "print -r -- \$PATH"'],
+                              env=env,text=True,capture_output=True,timeout=15)
+        self.assertEqual(nested.returncode,0,nested.stderr)
+        self.assertEqual(nested.stdout.strip().split(':').count(str(local_bin)),1,nested.stdout)
 
     def test_failed_config_upload_keeps_live_file(self):
         first=self.run_sync(); self.assertEqual(first.returncode,0,first.stderr)

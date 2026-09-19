@@ -168,7 +168,7 @@ fi
 
 echo "  -> Ensuring remote shell environment (PATH, TERM_PROGRAM=WezTerm & alias sourcing)..."
 if [[ ${dry_run} -eq 1 ]]; then
-  echo "     [dry-run] back up and configure both ~/.zshrc / ~/.bashrc: PATH, editor, terminal, aliases, fnm, fzf shortcuts and direnv"
+  echo "     [dry-run] back up and configure ~/.zshenv (PATH, editor, terminal, fzf commands) and ~/.zshrc / ~/.bashrc (aliases, fnm, fzf shortcuts, direnv)"
 else
   ssh -T "${target_host}" 'bash -s' << 'REMOTE_SCRIPT'
     set -euo pipefail
@@ -179,18 +179,41 @@ else
       printf '\n# dotfiles-managed:%s\n%b' "${marker}" "${block}" >> "${rc}"
     }
 
-    setup_rc() {
-      local rc="$1"
-      [[ ! -s "${rc}" || -e "${rc}.bak" ]] || cp -p "${rc}" "${rc}.bak"
-      ensure_line "${rc}" path 'export PATH="$HOME/.local/bin:$HOME/.local/share/fnm:$PATH"\n'
+    backup_once() {
+      local file="$1"
+      [[ ! -s "${file}" || -e "${file}.bak" ]] || cp -p "${file}" "${file}.bak"
+    }
+
+    # .zshenv, not .zshrc: herdr spawns popups and $EDITOR non-interactively.
+    setup_env() {
+      local file="$1"
+      backup_once "${file}"
+      # Per entry, and guarded: .zshenv also runs for nested shells.
+      ensure_line "${file}" path 'for dir in "$HOME/.local/bin" "$HOME/.local/share/fnm"; do
+  [ -d "$dir" ] || continue
+  case ":$PATH:" in
+    *":$dir:"*) ;;
+    *) PATH="$dir:$PATH" ;;
+  esac
+done
+export PATH
+unset dir
+'
       # herdr's edit_scrollback execs $EDITOR; unset, it falls back to vi.
-      ensure_line "${rc}" editor-v2 'export EDITOR=nvim\nexport VISUAL=nvim\n'
-      ensure_line "${rc}" term-program 'export TERM_PROGRAM="${TERM_PROGRAM:-WezTerm}"\n'
-      ensure_line "${rc}" aliases '[[ -f ~/.zsh_aliases ]] && source ~/.zsh_aliases\n'
-      ensure_line "${rc}" fzf-commands 'export FZF_DEFAULT_COMMAND="fd --type f --strip-cwd-prefix --hidden --exclude .git"
+      ensure_line "${file}" editor-v2 'export EDITOR=nvim\nexport VISUAL=nvim\n'
+      ensure_line "${file}" term-program 'export TERM_PROGRAM="${TERM_PROGRAM:-WezTerm}"\n'
+      ensure_line "${file}" fzf-commands 'export FZF_DEFAULT_COMMAND="fd --type f --strip-cwd-prefix --hidden --exclude .git"
 export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
 export FZF_ALT_C_COMMAND="fd --type d --strip-cwd-prefix --hidden --exclude .git"
 '
+    }
+
+    setup_rc() {
+      local rc="$1"
+      backup_once "${rc}"
+      # Bash has no .zshenv equivalent, so its environment stays in .bashrc.
+      if [[ "${rc}" == *.bashrc ]]; then setup_env "${rc}"; fi
+      ensure_line "${rc}" aliases '[[ -f ~/.zsh_aliases ]] && source ~/.zsh_aliases\n'
       case "${rc}" in
         *.zshrc)
           ensure_line "${rc}" fnm 'command -v fnm >/dev/null 2>&1 && eval "$(fnm env --use-on-cd --shell zsh)"\n'
@@ -211,6 +234,7 @@ fi
       esac
     }
 
+    setup_env ~/.zshenv
     setup_rc ~/.zshrc
     setup_rc ~/.bashrc
 REMOTE_SCRIPT
