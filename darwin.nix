@@ -52,7 +52,9 @@
     taps = [
       "sdkman/tap"
     ];
-    masApps = lib.optionalAttrs (profile == "home") {
+    masApps = {
+      "NewsBlur" = 463981119;
+    } // lib.optionalAttrs (profile == "home") {
       "Irvue" = 1039633667;
     };
     # Personal VPN, sync and scanning tools are gated behind the "home" profile.
