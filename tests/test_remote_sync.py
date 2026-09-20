@@ -118,7 +118,7 @@ class RemoteSyncTest(unittest.TestCase):
 
     def test_failed_config_upload_keeps_live_file(self):
         first=self.run_sync(); self.assertEqual(first.returncode,0,first.stderr)
-        for relative in ('.config/herdr/config.toml', '.claude/CLAUDE.md'):
+        for relative in ('.config/herdr/config.toml', '.zsh_aliases', '.claude/CLAUDE.md'):
             target=self.home/relative
             original=target.read_bytes()
             result=self.run_sync(FAIL_SCP_TARGET=str(target)+'.tmp')

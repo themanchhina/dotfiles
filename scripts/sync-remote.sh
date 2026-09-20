@@ -160,10 +160,11 @@ fi
 
 echo "  -> Zsh: .zsh_aliases"
 if [[ ${dry_run} -eq 1 ]]; then
-  echo "     [dry-run] scp ${repo_dir}/config/zsh/zsh_aliases ${target_host}:~/.zsh_aliases"
+  echo "     [dry-run] scp ${repo_dir}/config/zsh/zsh_aliases ${target_host}:~/.zsh_aliases.tmp, then rename to .zsh_aliases"
 else
   ssh -T "${target_host}" '[ ! -f ~/.zsh_aliases ] || [ -e ~/.zsh_aliases.bak ] || cp -p ~/.zsh_aliases ~/.zsh_aliases.bak' </dev/null
-  scp -q "${repo_dir}/config/zsh/zsh_aliases" "${target_host}:~/.zsh_aliases"
+  scp -q "${repo_dir}/config/zsh/zsh_aliases" "${target_host}:~/.zsh_aliases.tmp"
+  ssh -T "${target_host}" 'mv -f ~/.zsh_aliases.tmp ~/.zsh_aliases' </dev/null
 fi
 
 echo "  -> Ensuring remote shell environment (PATH, TERM_PROGRAM=WezTerm & alias sourcing)..."
