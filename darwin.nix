@@ -82,7 +82,7 @@
       "step"
       "uv"
       "watch"
-      "whisper-cpp"
+      "whisper.cpp"
       "zsh"
     ] ++ lib.optionals (profile == "home") [
       "nmap"

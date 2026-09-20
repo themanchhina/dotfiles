@@ -62,7 +62,7 @@ installed_taps="$("${brew_bin}" tap | sed '/^homebrew\//d' | sort)"
 # evaluation, and --impure gets no eval cache.
 declared_json="$("${nix_bin}" eval --impure --json \
   "path:${repo_dir}#darwinConfigurations.default.config.homebrew" \
-  --apply 'h: { brews = map (b: b.name) h.brews; casks = map (c: c.name) h.casks; taps = map (t: t.name) h.taps; masApps = builtins.attrValues h.masApps; }')"
+  --apply 'h: { brews = map (b: b.name) h.brews; casks = map (c: c.name) h.casks; taps = map (t: t.name) h.taps; masApps = builtins.attrValues h.masApps; masAppMap = h.masApps; }')"
 
 # Full names retain tap identity on both sides of the comparison.
 declared_brews="$(jq -r '.brews[]' <<< "${declared_json}" | sort)"
@@ -81,7 +81,8 @@ not_installed_casks="$(comm -13 <(echo "${installed_casks}") <(echo "${declared_
 not_installed_taps="$(comm -13 <(echo "${installed_taps}") <(echo "${declared_taps}") | grep -v '^$' || true)"
 
 if command -v mas >/dev/null 2>&1; then
-  installed_mas="$(mas list 2>/dev/null | awk '{print $1}' | sort)"
+  mas_raw="$(mas list 2>/dev/null || true)"
+  installed_mas="$(echo "${mas_raw}" | awk '{print $1}' | grep -v '^$' | sort)"
   missing_in_nix_mas="$(comm -23 <(echo "${installed_mas}") <(echo "${declared_mas}") | grep -v '^$' || true)"
   not_installed_mas="$(comm -13 <(echo "${installed_mas}") <(echo "${declared_mas}") | grep -v '^$' || true)"
 else
@@ -124,7 +125,12 @@ if [[ -n "${missing_in_nix_mas}" ]]; then
   echo ""
   echo "⚠️  Mac App Store apps NOT yet in darwin.nix:"
   while IFS= read -r item; do
-    echo "    ${item}"
+    app_name="$(echo "${mas_raw}" | awk -v id="${item}" '$1 == id { sub(/^[[:space:]]*[0-9]+[[:space:]]+/, ""); sub(/[[:space:]]+\([^)]+\)[[:space:]]*$/, ""); print; exit }')"
+    if [[ -n "${app_name}" ]]; then
+      echo "    \"${app_name}\" = ${item};"
+    else
+      echo "    ${item}"
+    fi
   done <<< "${missing_in_nix_mas}"
 fi
 
@@ -160,7 +166,12 @@ if [[ -n "${not_installed_mas}" ]]; then
   echo ""
   echo "ℹ️  Mac App Store apps declared in darwin.nix but not currently installed:"
   while IFS= read -r item; do
-    echo "    ${item}"
+    app_name="$(jq -r --arg id "${item}" '.masAppMap // {} | to_entries[] | select(.value == ($id|tonumber)) | .key' <<< "${declared_json}" 2>/dev/null || true)"
+    if [[ -n "${app_name}" ]]; then
+      echo "    \"${app_name}\" = ${item};"
+    else
+      echo "    ${item}"
+    fi
   done <<< "${not_installed_mas}"
 fi
 
