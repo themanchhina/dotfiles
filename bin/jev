@@ -1,0 +1,266 @@
+#!/usr/bin/env python3
+"""jev - TypeSafe System One (Jev) command-line interface.
+
+Provides fast, structured semantic judgments for scripts, agents, and pipelines
+using TypeSafe's Choice, Noul, and Score primitives.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import sys
+import urllib.error
+import urllib.request
+from typing import Any
+
+API_ENDPOINT = os.environ.get("TYPESAFE_API_URL", "https://api.typesafe.ai/v1/systemone")
+DEFAULT_MODEL = "jev-latest"
+
+
+def resolve_api_key(cli_key: str | None = None) -> str:
+    if cli_key:
+        return cli_key.strip()
+    if key := os.environ.get("TYPESAFE_API_KEY"):
+        return key.strip()
+
+    # Fallback: parse ~/.envrc if direnv hasn't loaded yet
+    envrc = os.path.expanduser("~/.envrc")
+    if os.path.exists(envrc):
+        try:
+            with open(envrc, "r", encoding="utf-8", errors="ignore") as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("export TYPESAFE_API_KEY="):
+                        val = line.split("=", 1)[1].strip().strip('"\'')
+                        if val:
+                            return val
+                    elif line.startswith("TYPESAFE_API_KEY="):
+                        val = line.split("=", 1)[1].strip().strip('"\'')
+                        if val:
+                            return val
+        except Exception:
+            pass
+
+    sys.stderr.write("Error: TYPESAFE_API_KEY not found in environment or ~/.envrc.\n")
+    sys.stderr.write("Set it via export TYPESAFE_API_KEY='...' or pass --api-key.\n")
+    sys.exit(1)
+
+
+def read_state(cli_state: str | None) -> Any:
+    if cli_state is not None:
+        try:
+            return json.loads(cli_state)
+        except Exception:
+            return cli_state
+
+    # If stdin has data piped into it
+    if not sys.stdin.isatty():
+        data = sys.stdin.read().strip()
+        if data:
+            try:
+                return json.loads(data)
+            except Exception:
+                return data
+
+    sys.stderr.write("Error: state is required. Pass --state or pipe text via stdin.\n")
+    sys.exit(2)
+
+
+def call_systemone(payload: dict[str, Any], api_key: str) -> dict[str, Any]:
+    req = urllib.request.Request(
+        API_ENDPOINT,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "User-Agent": "jev-cli/1.0",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        body = e.read().decode("utf-8", errors="replace")
+        try:
+            err_json = json.loads(body)
+            msg = err_json.get("error") or err_json.get("message") or body
+        except Exception:
+            msg = body
+        sys.stderr.write(f"TypeSafe API Error ({e.code}): {msg}\n")
+        sys.exit(1)
+    except urllib.error.URLError as e:
+        sys.stderr.write(f"Network error connecting to TypeSafe API: {e.reason}\n")
+        sys.exit(1)
+
+
+def cmd_choice(args: argparse.Namespace) -> None:
+    api_key = resolve_api_key(args.api_key)
+    state = read_state(args.state)
+
+    # Parse options / criteria
+    criteria: dict[str, Any] = {}
+    if args.criteria:
+        try:
+            criteria = json.loads(args.criteria)
+        except Exception as e:
+            sys.stderr.write(f"Error: --criteria must be valid JSON map: {e}\n")
+            sys.exit(2)
+    elif args.options:
+        opts = [o.strip() for o in args.options.split(",") if o.strip()]
+        for opt in opts:
+            criteria[opt] = None
+    else:
+        sys.stderr.write("Error: Choice requires --options (comma-separated) or --criteria (JSON map).\n")
+        sys.exit(2)
+
+    payload = {
+        "state": state,
+        "model": args.model or DEFAULT_MODEL,
+        "questions": {
+            "q": {
+                "type": "choice",
+                "instructions": args.question,
+                "criteria": criteria,
+            }
+        },
+    }
+
+    res = call_systemone(payload, api_key)
+    ans = res["answers"]["q"]
+
+    if args.json:
+        print(json.dumps(ans, indent=2))
+    elif args.raw:
+        print(ans["choice"])
+    else:
+        conf = ans.get("confidence", 0.0)
+        print(f"`⚡choice: {ans['choice']} ({conf:.2f})`")
+
+
+def cmd_noul(args: argparse.Namespace) -> None:
+    api_key = resolve_api_key(args.api_key)
+    state = read_state(args.state)
+
+    question_obj: dict[str, Any] = {
+        "type": "noul",
+        "instructions": args.question,
+    }
+
+    if args.true_criteria or args.false_criteria:
+        question_obj["criteria"] = {
+            "true": args.true_criteria or "Condition holds true",
+            "false": args.false_criteria or "Condition does not hold",
+        }
+
+    payload = {
+        "state": state,
+        "model": args.model or DEFAULT_MODEL,
+        "questions": {"q": question_obj},
+    }
+
+    res = call_systemone(payload, api_key)
+    ans = res["answers"]["q"]
+
+    prob = ans.get("noul", 0.0)
+    if args.json:
+        print(json.dumps(ans, indent=2))
+    elif args.raw:
+        print(f"{prob:.4f}")
+    else:
+        print(f"`⚡noul: {prob:.2f}`")
+
+
+def cmd_score(args: argparse.Namespace) -> None:
+    api_key = resolve_api_key(args.api_key)
+    state = read_state(args.state)
+
+    if args.levels:
+        levels = [lvl.strip() for lvl in args.levels.split(",") if lvl.strip()]
+    elif args.criteria:
+        try:
+            levels = json.loads(args.criteria)
+            if not isinstance(levels, list):
+                raise ValueError("Score criteria must be a JSON array of level descriptions.")
+        except Exception as e:
+            sys.stderr.write(f"Error: --criteria for score must be a JSON array: {e}\n")
+            sys.exit(2)
+    else:
+        sys.stderr.write("Error: Score requires --levels (comma-separated) or --criteria (JSON array).\n")
+        sys.exit(2)
+
+    payload = {
+        "state": state,
+        "model": args.model or DEFAULT_MODEL,
+        "questions": {
+            "q": {
+                "type": "score",
+                "instructions": args.question,
+                "criteria": levels,
+            }
+        },
+    }
+
+    res = call_systemone(payload, api_key)
+    ans = res["answers"]["q"]
+
+    score_val = ans.get("score", 0.0)
+    conf = ans.get("confidence", 0.0)
+    max_level = len(levels)
+
+    if args.json:
+        print(json.dumps(ans, indent=2))
+    elif args.raw:
+        print(f"{score_val:.2f}")
+    else:
+        print(f"`⚡score: {score_val:.1f}/{max_level} ({conf:.2f})`")
+
+
+def main() -> None:
+    common_parser = argparse.ArgumentParser(add_help=False)
+    common_parser.add_argument("--api-key", help="TypeSafe API key (defaults to TYPESAFE_API_KEY env or ~/.envrc)")
+    common_parser.add_argument("--model", default=DEFAULT_MODEL, help=f"Model alias (default: {DEFAULT_MODEL})")
+    common_parser.add_argument("--json", action="store_true", help="Output full JSON response")
+    common_parser.add_argument("--raw", action="store_true", help="Output only the raw value (choice, noul float, or score)")
+
+    parser = argparse.ArgumentParser(
+        prog="jev",
+        description="TypeSafe System One (Jev) command-line interface.",
+        parents=[common_parser],
+    )
+
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    # choice
+    p_choice = subparsers.add_parser("choice", parents=[common_parser], help="Select one option from a defined set")
+    p_choice.add_argument("question", help="Instructions / decision question")
+    p_choice.add_argument("-o", "--options", help="Comma-separated option names (e.g. 'work,home')")
+    p_choice.add_argument("-c", "--criteria", help="JSON map of option -> rubric description")
+    p_choice.add_argument("-s", "--state", help="State text or JSON (reads stdin if omitted)")
+    p_choice.set_defaults(func=cmd_choice)
+
+    # noul
+    p_noul = subparsers.add_parser("noul", parents=[common_parser], help="Evaluate a yes/no question (returns probability of yes)")
+    p_noul.add_argument("question", help="Instructions / yes-no question")
+    p_noul.add_argument("--true", dest="true_criteria", help="Description of what yes means")
+    p_noul.add_argument("--false", dest="false_criteria", help="Description of what no means")
+    p_noul.add_argument("-s", "--state", help="State text or JSON (reads stdin if omitted)")
+    p_noul.set_defaults(func=cmd_noul)
+
+    # score
+    p_score = subparsers.add_parser("score", parents=[common_parser], help="Rate state along an ordered rubric")
+    p_score.add_argument("question", help="Instructions / rating question")
+    p_score.add_argument("-l", "--levels", help="Comma-separated ordered levels (e.g. 'Low,Medium,High')")
+    p_score.add_argument("-c", "--criteria", help="JSON array of ordered level descriptions")
+    p_score.add_argument("-s", "--state", help="State text or JSON (reads stdin if omitted)")
+    p_score.set_defaults(func=cmd_score)
+
+    args = parser.parse_args()
+    args.func(args)
+
+
+if __name__ == "__main__":
+    main()

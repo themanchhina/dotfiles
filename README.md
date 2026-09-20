@@ -31,6 +31,7 @@ home.nix               user packages, shell, and managed file destinations
 config/                application, Git, SSH, Neovim, and prompt configuration
 scripts/bootstrap.sh   first activation on a new Mac
 scripts/rebuild.sh     validate and apply the current configuration
+scripts/check.sh       validate shell syntax, linting, flake eval, and tests
 scripts/update.sh      intentionally update Nix inputs and Homebrew packages
 scripts/sync-brew.sh   audit installed Homebrew packages against darwin.nix (read-only)
 scripts/sync-remote.sh push terminal and editor config to a remote Linux host
@@ -111,7 +112,7 @@ This means:
 herdr --remote india                                   # attach from the Mac
 ```
 
-It initializes both Bash and Zsh (creating missing rc files), including PATH, fnm, `EDITOR`/`VISUAL`, terminal identity, fzf shortcuts (Ctrl+R, Ctrl+T, Alt+C), and direnv hooks. fzf uses the same fd searches as the Mac; prompts and development stacks remain host-owned. Herdr configuration and agent instructions are staged before replacement so interrupted uploads leave the live files intact. The sync reloads a running Herdr server. Open a new shell after syncing. `--dry-run` does not connect. Neovim plugin failures make the command fail and retain a diagnostic log, including failures where Lazy would otherwise return a successful process exit.
+It initializes both Bash and Zsh (creating missing rc files), including PATH, fnm, `EDITOR`/`VISUAL`, terminal identity, fzf shortcuts (Ctrl+R, Ctrl+T, Alt+C), and direnv hooks. fzf uses the same fd searches as the Mac; prompts and development stacks remain host-owned. Herdr configuration, shell aliases, and agent instructions are staged before replacement so interrupted uploads leave the live files intact. The sync reloads a running Herdr server. Open a new shell after syncing. `--dry-run` does not connect. Neovim plugin failures make the command fail and retain a diagnostic log, including failures where Lazy would otherwise return a successful process exit.
 
 `--install-tools` requires Linux x86_64/ARM64 with Git, curl, tar, gzip, unzip, sha256sum, and a C compiler. On bare Ubuntu, install missing prerequisites with `sudo apt-get install build-essential unzip git curl`. It installs the existing CLI set (Neovim, Herdr, ripgrep, fd, lazygit, jq, fzf, direnv, uv, fnm, tree-sitter) in your home directory. fzf is upgraded when it lacks native shell integration (requires 0.48 or newer). Herdr's version matches the initiating Mac, and its downloaded binary is checksum-verified. Neovim must be at least 0.11.2 with LuaJIT. If tree-sitter's binary cannot run on the host, it builds locally using Cargo or a temporary Rust toolchain, removed afterward.
 

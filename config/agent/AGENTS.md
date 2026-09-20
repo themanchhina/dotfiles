@@ -6,6 +6,7 @@
 - Pipe heavy output to a file you cite, unless I asked to see it.
 - Choose the form by what the information is - tables for comparisons, a diagram for flows and how pieces fit, structured text otherwise. Output for agents can be dense.
 - Never add yourself as a commit co-author.
+- Use Jev (TypeSafe System One / `jev` CLI) for semantic decisions, routing, scoring, and classification — prefer typed judgments over LLM text-generation loops or brittle heuristics.
 
 # maintaining this file
 

@@ -43,6 +43,9 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   alias sync-remote="$(printf '%q' "$DOTFILES_DIR/scripts/sync-remote.sh")"
   alias remote-files="$(printf '%q' "$DOTFILES_DIR/scripts/remote-files.sh")"
   alias remote-preview="$(printf '%q' "$DOTFILES_DIR/scripts/remote-preview.sh")"
+  alias dotfiles-check="$(printf '%q' "$DOTFILES_DIR/scripts/check.sh")"
+  alias jev="$(printf '%q' "$DOTFILES_DIR/bin/jev")"
+  alias jv="jev"
   alias nix-clean="nix-collect-garbage --delete-older-than 30d"
 fi
 

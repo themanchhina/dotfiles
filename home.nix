@@ -29,6 +29,9 @@ in
     VISUAL = "nvim";
     DOTFILES_DIR = dotfilesDirectory;
   };
+  home.sessionPath = [
+    "${homeDirectory}/.local/bin"
+  ];
 
   xdg.configFile."git/personal.conf".source = link "config/git/personal.conf";
   xdg.configFile."git/ignore".source = link "config/git/ignore";
@@ -36,7 +39,10 @@ in
   xdg.configFile."wezterm/wezterm.lua".source = link "config/wezterm/wezterm.lua";
   xdg.configFile."nvim".source = link "config/nvim";
 
+  home.file.".local/bin/jev".source = link "bin/jev";
   home.file.".claude/CLAUDE.md".source = link "config/agent/AGENTS.md";
+  home.file.".codex/instructions.md".source = link "config/agent/AGENTS.md";
+  home.file.".gemini/config/AGENTS.md".source = link "config/agent/AGENTS.md";
   home.file.".gitconfig".source = link "config/git/config";
   home.file.".ssh/config".source = link "config/ssh/config";
   home.file.".p10k.zsh".source = link "config/zsh/p10k.zsh";
@@ -122,7 +128,7 @@ in
           [[ -d "$SDKMAN_DIR/candidates/java/current" ]] && export JAVA_HOME="$SDKMAN_DIR/candidates/java/current"
         fi
 
-        [[ -x /opt/homebrew/bin/fnm ]] && eval "$(/opt/homebrew/bin/fnm env --use-on-cd)"
+        [[ -x "$brew_prefix/bin/fnm" ]] && eval "$("$brew_prefix/bin/fnm" env --use-on-cd)"
       '')
     ];
 
